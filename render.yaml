@@ -1,0 +1,34 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: disputeguard
+    runtime: node
+    plan: free
+    region: virginia # close to the Neon database (us-east-1)
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: AUTO_INVESTIGATE
+        value: "true"
+      - key: MAX_INVESTIGATIONS_PER_HOUR
+        value: "30"
+      # Secrets: entered in the Render dashboard, never committed.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
