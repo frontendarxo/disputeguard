@@ -77,9 +77,12 @@ export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Gu
       failReason: `${action === "fight" ? "fighting a dispute" : "acting on a dispute"} in the ${stageName(input.stage).toLowerCase()} stage always needs you`,
     },
     {
-      label: `Amount within auto-limit (${fmt(input.amount, input.currency)} ≤ ${fmt(guardrails.maxAutoAmount, input.currency)})`,
-      passed: input.amount <= guardrails.maxAutoAmount,
-      failReason: `${fmt(input.amount, input.currency)} is over your ${fmt(guardrails.maxAutoAmount, input.currency)} auto-limit`,
+      label: `Amount within auto-limit (${fmt(input.amount, input.currency)} ≤ ${fmt(guardrails.maxAutoAmount, guardrails.currency)})`,
+      passed: input.currency === guardrails.currency && input.amount <= guardrails.maxAutoAmount,
+      failReason:
+        input.currency !== guardrails.currency
+          ? `the auto-limit is set in ${guardrails.currency}, and this dispute is in ${input.currency}`
+          : `${fmt(input.amount, input.currency)} is over your ${fmt(guardrails.maxAutoAmount, guardrails.currency)} auto-limit`,
     },
     {
       label: `Confidence at least ${pct(minConfidence)} for ${action ?? "acting"} (agent: ${pct(input.confidence)})`,

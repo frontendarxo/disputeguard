@@ -1,6 +1,6 @@
 "use client";
 
-import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef, type ICellRendererParams } from "ag-grid-community";
+import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef, type GridApi, type ICellRendererParams } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -31,10 +31,16 @@ const theme = themeQuartz.withParams({
 
 type Filter = "all" | "open" | "approval";
 
+function fitColumns(api: GridApi<DisputeRow>, width: number) {
+  if (!width) return;
+  api.setColumnsVisible(["openedAt", "dueAt"], width >= 1000);
+  api.setColumnsVisible(["reason"], width >= 640);
+}
+
 function DisputeCell({ data }: ICellRendererParams<DisputeRow>) {
   if (!data) return null;
   return (
-    <div className="flex flex-col justify-center gap-0.5 leading-tight">
+    <div className="flex h-full flex-col justify-center gap-0.5 leading-tight">
       <span className="font-semibold">{data.buyer}</span>
       {data.items && <span className="truncate text-xs text-muted">{data.items}</span>}
     </div>
@@ -175,6 +181,9 @@ export function DisputesGrid({ rows }: { rows: DisputeRow[] }) {
             getRowId={(p) => p.data.id}
             defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
             onRowClicked={(e) => e.data && router.push(`/disputes/${encodeURIComponent(e.data.id)}`)}
+            // Narrow screens: drop secondary columns instead of scrolling sideways.
+            onGridSizeChanged={(e) => fitColumns(e.api, e.clientWidth)}
+            onFirstDataRendered={(e) => fitColumns(e.api, window.innerWidth)}
             rowClass="cursor-pointer"
             overlayNoRowsTemplate="<span>No disputes match this filter.</span>"
           />

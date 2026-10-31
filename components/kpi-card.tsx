@@ -8,6 +8,7 @@ export function KpiCard({
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
+  /** Colors only mean something when there is something to see: zero stays neutral. */
   tone?: "default" | "ok" | "warn";
   children?: React.ReactNode;
 }) {

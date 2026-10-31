@@ -1,12 +1,12 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb, schema } from "@/lib/db";
 import { describeError } from "@/lib/errors";
 import { parseRule } from "@/lib/policy/parse-rule";
-import { upsertRule } from "@/lib/policy/rules-store";
+import { loadDefaultRules, upsertRule } from "@/lib/policy/rules-store";
 import type { ParsedRule } from "@/lib/policy/types";
 import { logActivity } from "@/lib/services/activity";
 import { executeDecision } from "@/lib/services/execute-decision";
@@ -47,14 +47,15 @@ export async function investigateAction(disputeId: string) {
   redirect(`/disputes/${encodeURIComponent(disputeId)}`);
 }
 
-async function resolveDecision(decisionId: number, status: "approved" | "rejected") {
+/** Only a decision that is waiting for you can be approved or rejected (no double clicks, no undoing a sent action). */
+async function resolveDecision(decisionId: number, status: "approved" | "rejected", chosenAction?: "fight" | "refund") {
   const db = getDb();
   const [decision] = await db
     .update(schema.decisions)
-    .set({ status, resolvedAt: new Date() })
-    .where(eq(schema.decisions.id, decisionId))
+    .set({ status, resolvedAt: new Date(), ...(chosenAction ? { action: chosenAction } : {}) })
+    .where(and(eq(schema.decisions.id, decisionId), eq(schema.decisions.status, "pending_approval")))
     .returning();
-  if (!decision) throw new Error("Decision not found.");
+  if (!decision) throw new Error("This decision was already handled.");
 
   await logActivity({
     disputeId: decision.disputeId,
@@ -76,10 +77,7 @@ export async function approveDecisionAction(
 ): Promise<ActionResult> {
   try {
     // When the agent left the call to you, your choice becomes the action.
-    if (chosenAction) {
-      await getDb().update(schema.decisions).set({ action: chosenAction }).where(eq(schema.decisions.id, decisionId));
-    }
-    await resolveDecision(decisionId, "approved");
+    await resolveDecision(decisionId, "approved", chosenAction);
     const execution = await executeDecision(decisionId, responseText);
     revalidatePath("/", "layout");
     return execution.ok ? { ok: true, message: execution.detail } : { ok: false, message: execution.detail };
@@ -90,13 +88,24 @@ export async function approveDecisionAction(
 }
 
 export async function rejectDecisionAction(decisionId: number) {
-  await resolveDecision(decisionId, "rejected");
+  await resolveDecision(decisionId, "rejected").catch(() => revalidatePath("/", "layout"));
+}
+
+// Rule parsing calls the AI; cap it so the public demo can't run up costs.
+const ruleParses: number[] = [];
+function allowRuleParse(limit = 30) {
+  const hourAgo = Date.now() - 3_600_000;
+  while (ruleParses.length && ruleParses[0] < hourAgo) ruleParses.shift();
+  if (ruleParses.length >= limit) return false;
+  ruleParses.push(Date.now());
+  return true;
 }
 
 export async function previewRuleAction(text: string): Promise<{ ok: true; rule: ParsedRule } | { ok: false; message: string }> {
   const trimmed = text.trim();
   if (trimmed.length < 8) return { ok: false, message: "Describe the rule in a few words." };
   if (trimmed.length > 300) return { ok: false, message: "Keep the rule under 300 characters." };
+  if (!allowRuleParse()) return { ok: false, message: "Too many rule previews this hour. Try again later." };
   try {
     return { ok: true, rule: await parseRule(trimmed) };
   } catch (err) {
@@ -125,10 +134,11 @@ export async function toggleRuleAction(ruleId: string, enabled: boolean) {
 export async function sendDecisionAction(decisionId: number): Promise<ActionResult> {
   try {
     const db = getDb();
+    // Only an approved or failed decision can be (re)sent.
     await db
       .update(schema.decisions)
       .set({ status: "approved" })
-      .where(eq(schema.decisions.id, decisionId));
+      .where(and(eq(schema.decisions.id, decisionId), inArray(schema.decisions.status, ["approved", "failed"])));
     const execution = await executeDecision(decisionId);
     revalidatePath("/", "layout");
     return { ok: execution.ok, message: execution.detail };
@@ -141,5 +151,12 @@ export async function sendDecisionAction(decisionId: number): Promise<ActionResu
 export async function deleteRuleAction(ruleId: string) {
   const [rule] = await getDb().delete(schema.rules).where(eq(schema.rules.id, ruleId)).returning();
   if (rule) await logActivity({ actor: "seller", type: "rule.deleted", message: `Removed rule: “${rule.text}”` });
+  revalidatePath("/rules");
+}
+
+/** Puts the starter rules back (handy on the public demo, where anyone can edit rules). */
+export async function restoreStarterRulesAction() {
+  for (const rule of await loadDefaultRules()) await upsertRule(rule);
+  await logActivity({ actor: "seller", type: "rule.created", message: "Restored the starter rules" });
   revalidatePath("/rules");
 }

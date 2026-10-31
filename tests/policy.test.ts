@@ -141,3 +141,11 @@ describe("policy engine", () => {
     assert.equal(evaluatePolicy(input(), [fightDelivered], strict).mode, "approval");
   });
 });
+
+describe("currency guardrail", () => {
+  it("never acts automatically outside the guardrail currency", () => {
+    const d = evaluatePolicy(input({ currency: "KWD" }), [fightDelivered], g);
+    assert.equal(d.mode, "approval");
+    assert.match(d.reason, /auto-limit is set in USD/);
+  });
+});

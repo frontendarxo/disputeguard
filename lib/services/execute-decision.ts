@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { describeError } from "../errors";
 import { acceptClaim, provideEvidence, sendMessage, type TrackingInfo } from "../paypal/dispute-actions";
@@ -47,6 +47,20 @@ export async function executeDecision(decisionId: number, responseText?: string)
   if (decision.status !== "approved") throw new Error(`Decision is ${decision.status}, not approved.`);
   if (!decision.action) throw new Error("This decision has no action to carry out.");
 
+  // Money moves at most once per dispute, even with double clicks or parallel triggers.
+  const [other] = await db
+    .select({ id: schema.decisions.id })
+    .from(schema.decisions)
+    .where(
+      and(
+        eq(schema.decisions.disputeId, decision.disputeId),
+        ne(schema.decisions.id, decisionId),
+        inArray(schema.decisions.status, ["executing", "executed"]),
+      ),
+    )
+    .limit(1);
+  if (other) throw new Error("This dispute was already handled in PayPal.");
+
   const [investigation] = await db
     .select()
     .from(schema.investigations)
@@ -56,7 +70,13 @@ export async function executeDecision(decisionId: number, responseText?: string)
   const text = (responseText ?? investigation?.assessment?.draftResponse ?? "").trim();
   if (!text) throw new Error("There is no response text to send.");
 
-  await db.update(schema.decisions).set({ status: "executing", responseText: text }).where(eq(schema.decisions.id, decisionId));
+  // Atomic claim: only one caller can move approved → executing.
+  const [claimed] = await db
+    .update(schema.decisions)
+    .set({ status: "executing", responseText: text })
+    .where(and(eq(schema.decisions.id, decisionId), eq(schema.decisions.status, "approved")))
+    .returning({ id: schema.decisions.id });
+  if (!claimed) throw new Error("This decision is already being sent.");
 
   let execution: Execution;
   try {

@@ -34,13 +34,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <section aria-label="Key metrics" className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+      <section aria-label="Key metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Money at risk" value={money(kpis.atRisk, kpis.currency)} hint={`${kpis.openCount} open disputes`} />
         <KpiCard
           label="Protected by the agent"
           value={money(kpis.protected, kpis.currency)}
-          hint={`${kpis.protectedCount} claims answered with evidence`}
-          tone="ok"
+          hint={kpis.protectedCount ? `${kpis.protectedCount} claims won with evidence` : "No claims fought yet"}
+          tone={kpis.protected > 0 ? "ok" : "default"}
         />
         <KpiCard
           label="Decided automatically"
@@ -57,7 +57,7 @@ export default async function DashboardPage() {
         <KpiCard
           label="Awaiting your approval"
           value={kpis.awaitingCount}
-          tone="warn"
+          tone={kpis.awaitingCount > 0 ? "warn" : "default"}
           hint={kpis.awaitingCount ? <a href="#approvals" className="font-semibold">Review now</a> : "All caught up"}
         />
       </section>

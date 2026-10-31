@@ -62,6 +62,7 @@ export async function getAccessToken(): Promise<string> {
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!res.ok) {
@@ -88,6 +89,7 @@ export async function paypalFetch<T>(path: string, init: RequestInit = {}): Prom
   const token = await getAccessToken();
 
   const res = await fetch(`${baseUrl}${path}`, {
+    signal: AbortSignal.timeout(20_000),
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,

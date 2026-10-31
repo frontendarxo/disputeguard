@@ -1,3 +1,4 @@
+import { humanizeText } from "./format";
 import type { Tone } from "./status";
 
 export interface ActivityEntry {
@@ -41,7 +42,10 @@ export function friendlyMessage(entry: Pick<ActivityEntry, "type" | "message">):
     }
     return truncate(entry.message.replace(/^Investigation failed:\s*/i, "Investigation failed: "), 140);
   }
-  return truncate(entry.message, 160);
+  const text = humanizeText(entry.message)
+    .replace(/ — Needs your approval: /, ". Needs you: ")
+    .replace(/^PayPal action failed: The requested action could not be performed, semantically incorrect, or failed business validation\. \(HTTP 422\)$/, "PayPal didn't accept the action at this stage (HTTP 422).");
+  return truncate(text, 160);
 }
 
 function truncate(text: string, max: number) {
@@ -85,7 +89,10 @@ export function groupActivity(entries: ActivityEntry[], limit = 6): ActivityGrou
   }
   return [...groups.entries()]
     .map(([key, list]) => {
-      const sorted = [...list].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
+      // Oldest first; drop repeats of the same message (e.g. two identical failures in a row).
+      const sorted = [...list]
+        .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+        .filter((e, i, all) => i === 0 || e.message !== all[i - 1].message);
       const latest = sorted[sorted.length - 1];
       return { key, disputeId: latest.disputeId, entries: sorted, outcome: outcomeFor(latest), at: new Date(latest.createdAt) };
     })

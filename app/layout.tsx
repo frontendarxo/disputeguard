@@ -16,8 +16,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${plexMono.variable}`}>
       <body className="min-h-screen bg-ground font-sans text-sm leading-[1.45] text-ink antialiased">
         <div className="bg-ink px-4 py-2 text-center text-[13px] text-white">
-          Live demo on the PayPal sandbox — one demo store, test money only. New disputes arrive by PayPal webhook and the agent
-          handles them on its own.
+          Live demo on the PayPal sandbox with test money only.
+          <span className="hidden sm:inline"> New disputes arrive by PayPal webhook and the agent handles them on its own.</span>
         </div>
         <Header />
         {children}

@@ -33,8 +33,30 @@ export async function syncDispute(disputeId: string) {
   return row;
 }
 
-/** Pulls all recent disputes from PayPal. Returns which ones are new. */
-export async function syncDisputes() {
+type SyncResult = { total: number; created: string[] };
+let inFlight: Promise<SyncResult> | null = null;
+let last: { at: number; total: number } | null = null;
+
+/**
+ * Pulls all recent disputes from PayPal. Returns which ones are new.
+ * Every open dashboard auto-syncs, so concurrent calls share one run and
+ * calls within `minIntervalMs` of the last run are skipped.
+ */
+export async function syncDisputes(minIntervalMs = 20_000): Promise<SyncResult> {
+  if (inFlight) return inFlight;
+  if (last && Date.now() - last.at < minIntervalMs) return { total: last.total, created: [] };
+  inFlight = runSync()
+    .then((r) => {
+      last = { at: Date.now(), total: r.total };
+      return r;
+    })
+    .finally(() => {
+      inFlight = null;
+    });
+  return inFlight;
+}
+
+async function runSync(): Promise<SyncResult> {
   const summaries = await listDisputes(50);
   const ids = summaries.map((s) => s.dispute_id);
 

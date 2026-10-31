@@ -1,3 +1,4 @@
+import { restoreStarterRulesAction } from "@/app/actions";
 import { RuleComposer } from "@/components/rule-composer";
 import { RuleDelete } from "@/components/rule-delete";
 import { RuleToggle } from "@/components/rule-toggle";
@@ -23,9 +24,16 @@ export default async function RulesPage() {
       <RuleComposer />
 
       <section aria-labelledby="active-title" className="flex flex-col gap-3">
-        <h2 id="active-title" className="text-base font-semibold">
-          Your rules
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="active-title" className="text-base font-semibold">
+            Your rules
+          </h2>
+          <form action={restoreStarterRulesAction}>
+            <button type="submit" className="min-h-9 rounded-lg px-2 text-[13px] font-semibold text-accent-ink hover:bg-accent-soft">
+              Restore starter rules
+            </button>
+          </form>
+        </div>
         {rules.length === 0 && <p className="text-muted">No rules yet — every dispute will come to you.</p>}
         {rules.map((rule) => (
           <article
@@ -58,14 +66,17 @@ export default async function RulesPage() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-px flex-shrink-0">
           <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
         </svg>
-        <div className="flex flex-col gap-1">
-          <span className="font-semibold">Always needs your approval</span>
-          <span className="text-muted">
-            Disputes over ${g.maxAutoAmount}, fighting anything outside the {g.autoStages.fight.map((s) => s.toLowerCase()).join("/")} stage
-            (refunds may also run on {g.autoStages.refund.filter((s) => !g.autoStages.fight.includes(s)).map((s) => s.toLowerCase()).join("/")}
-            disputes), and any case where the agent is less confident than {Math.round(g.minConfidence.fight * 100)}% to fight or{" "}
-            {Math.round(g.minConfidence.refund * 100)}% to refund — whatever the rules say.
-          </span>
+        <div className="flex flex-col gap-1.5">
+          <span className="font-semibold">Always needs your approval, whatever the rules say</span>
+          <ul className="flex list-disc flex-col gap-1 pl-4 text-muted">
+            <li>Disputes over {g.currency === "USD" ? "$" : ""}{g.maxAutoAmount}{g.currency === "USD" ? "" : ` ${g.currency}`}, or in a currency other than {g.currency}</li>
+            <li>Fighting a dispute outside the {g.autoStages.fight.map((s) => s.toLowerCase()).join(" or ")} stage</li>
+            <li>Refunding outside the {g.autoStages.refund.map((s) => s.toLowerCase()).join(" or ")} stages</li>
+            <li>
+              The agent being less than {Math.round(g.minConfidence.fight * 100)}% sure to fight, or {Math.round(g.minConfidence.refund * 100)}% sure to refund
+            </li>
+            <li>Fighting on a delivery that PayPal tracking doesn&apos;t confirm</li>
+          </ul>
         </div>
       </section>
     </main>

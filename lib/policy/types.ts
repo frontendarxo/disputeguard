@@ -57,6 +57,8 @@ export type DeliveryStatus = (typeof deliveryStatuses)[number];
 /** Hard limits that apply no matter what the rules say. */
 export interface Guardrails {
   maxAutoAmount: number;
+  /** The auto-limit is set in this currency; other currencies always need the seller. */
+  currency: string;
   /** Minimum agent confidence per action. A wrong refund costs less than a wrong fight. */
   minConfidence: { fight: number; refund: number };
   /**
@@ -69,6 +71,7 @@ export interface Guardrails {
 
 export const DEFAULT_GUARDRAILS: Guardrails = {
   maxAutoAmount: 100,
+  currency: "USD",
   minConfidence: { fight: 0.8, refund: 0.65 },
   autoStages: { fight: ["INQUIRY"], refund: ["INQUIRY", "CHARGEBACK"] },
 };

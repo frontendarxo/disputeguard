@@ -1,9 +1,22 @@
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, inArray } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { investigateDispute, type AgentStepEvent } from "../agent/investigate";
+import { verifyDeliveryStatus, type Tracker } from "../policy/delivery";
 import { evaluatePolicy } from "../policy/engine";
+import { getTrackingForTransaction } from "../paypal/tracking";
 import { loadRules } from "../policy/rules-store";
 import { DEFAULT_GUARDRAILS, type DeliveryStatus } from "../policy/types";
+
+/** Tracker records straight from PayPal (empty when there are none or the lookup fails). */
+async function trackersFor(transactionId: string | null): Promise<Tracker[]> {
+  if (!transactionId) return [];
+  try {
+    const data = (await getTrackingForTransaction(transactionId)) as { trackers?: Tracker[] };
+    return data.trackers ?? [];
+  } catch {
+    return [];
+  }
+}
 import { logActivity } from "./activity";
 import { executeDecision } from "./execute-decision";
 import { syncDispute } from "./sync";
@@ -31,17 +44,36 @@ export async function processDispute(
   await logActivity({ disputeId, actor: "agent", type: "investigation.started", message: "Started investigating" });
 
   const steps: AgentStepEvent[] = [];
+  // Step writes run one after another, so a late write can't overwrite the final result.
+  let stepWrites: Promise<unknown> = Promise.resolve();
   try {
     const result = await investigateDispute(disputeId, {
       onStep: (step) => {
         steps.push(step);
         options.onStep?.(step);
-        // Fire-and-forget so the UI can show progress while the agent works.
-        void db.update(schema.investigations).set({ steps: [...steps] }).where(eq(schema.investigations.id, investigation.id));
+        // Saved in the background so the UI can show progress while the agent works.
+        const snapshot = [...steps];
+        stepWrites = stepWrites
+          .then(() => db.update(schema.investigations).set({ steps: snapshot }).where(eq(schema.investigations.id, investigation.id)))
+          .catch(() => undefined);
       },
     });
 
+    await stepWrites;
     const a = result.assessment;
+
+    // Code decides: delivery status is checked against PayPal's tracker records.
+    const claimed = a.deliveryStatus as DeliveryStatus;
+    const verified = verifyDeliveryStatus(claimed, await trackersFor(dispute.sellerTransactionId));
+    if (verified !== claimed) {
+      await logActivity({
+        disputeId,
+        actor: "system",
+        type: "investigation.adjusted",
+        message: `Tracking doesn't confirm “${claimed.replaceAll("_", " ")}”; using “${verified.replaceAll("_", " ")}” for your rules`,
+      });
+    }
+
     await db
       .update(schema.investigations)
       .set({ status: "completed", model: result.model, assessment: a, steps: result.steps, finishedAt: new Date() })
@@ -56,7 +88,7 @@ export async function processDispute(
         stage: dispute.stage ?? "UNKNOWN",
         recommendation: a.recommendation,
         confidence: a.confidence,
-        deliveryStatus: a.deliveryStatus as DeliveryStatus,
+        deliveryStatus: verified,
       },
       rules,
       DEFAULT_GUARDRAILS,
@@ -97,6 +129,7 @@ export async function processDispute(
     return { dispute, assessment: a, decision: saved, investigationId: investigation.id };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    await stepWrites;
     await db
       .update(schema.investigations)
       .set({ status: "failed", error: message, steps, finishedAt: new Date() })
@@ -118,6 +151,13 @@ export async function startInvestigation(disputeId: string): Promise<number> {
     .where(and(eq(schema.investigations.disputeId, disputeId), eq(schema.investigations.status, "running")))
     .limit(1);
   if (running) return running.id;
+
+  const [handled] = await db
+    .select({ id: schema.decisions.id })
+    .from(schema.decisions)
+    .where(and(eq(schema.decisions.disputeId, disputeId), inArray(schema.decisions.status, ["executing", "executed"])))
+    .limit(1);
+  if (handled) throw new Error("This dispute was already handled in PayPal.");
 
   // Protects the public demo from runaway AI costs.
   const limit = Number(process.env.MAX_INVESTIGATIONS_PER_HOUR ?? 30);

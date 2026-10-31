@@ -32,6 +32,15 @@ function Check({ ok }: { ok: boolean }) {
   );
 }
 
+/** Decisions saved before the wording change still say "Dispute stage: X (automatic … only in …)". */
+function readableCheck(label: string) {
+  const old = /^Dispute stage: (\w+) \(automatic (\w+) only in ([^)]*)\)$/.exec(label);
+  if (!old) return label;
+  const [, stage, action, stages] = old;
+  const allowed = stages.split(", ").includes(stage);
+  return `${stage} stage: automatic ${action === "fight" ? "fighting" : action === "refund" ? "refunds" : "actions"} ${allowed ? "allowed" : "not allowed"} here`;
+}
+
 type Outcome = { tone: "ok" | "warn" | "danger" | "info" | "neutral"; title: string; detail: string };
 
 function outcomeOf(
@@ -146,8 +155,8 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
         </section>
       )}
 
-      <div className="flex flex-wrap items-start gap-5">
-        <section aria-labelledby="inv-title" className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <section aria-labelledby="inv-title" className="flex min-w-0 flex-col gap-5">
           <div className="flex flex-col gap-4 rounded-xl border border-line bg-white p-6">
             <div className="flex items-center justify-between gap-3">
               <h2 id="inv-title" className="text-base font-semibold">
@@ -271,12 +280,13 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
             )}
         </section>
 
-        <aside className="flex min-w-0 flex-[1_1_380px] flex-col gap-5">
+        {/* On phones the recommendation comes first; the investigation details follow. */}
+        <aside className="order-first flex min-w-0 flex-col gap-5 lg:order-none">
           {a ? (
             <>
               <section aria-labelledby="rec-title" className="flex flex-col gap-4 rounded-xl border border-line bg-white p-6">
-                <h2 id="rec-title" className="text-[13px] font-semibold uppercase tracking-wide text-muted">
-                  Recommendation
+                <h2 id="rec-title" className="text-base font-semibold">
+                  Agent recommendation
                 </h2>
                 <div className="flex items-baseline justify-between gap-3">
                   <span className={`text-[22px] font-bold ${recTone}`}>{recText}</span>
@@ -296,7 +306,7 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
                           <span className={`mt-0.5 ${c.passed ? "text-ok" : "text-warn"}`}>
                             <Check ok={c.passed} />
                           </span>
-                          {c.label}
+                          {readableCheck(c.label)}
                         </li>
                       ))}
                     </ul>

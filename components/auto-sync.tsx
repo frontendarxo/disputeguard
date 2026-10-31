@@ -11,7 +11,8 @@ export function AutoSync({ intervalMs = 60_000 }: { intervalMs?: number }) {
     const id = setInterval(async () => {
       if (document.visibilityState !== "visible") return;
       const result = await syncAction();
-      if (result.ok && !result.message.includes("(0 new)")) router.refresh();
+      // Refresh either way: webhooks and the agent may have changed statuses meanwhile.
+      if (result.ok) router.refresh();
     }, intervalMs);
     return () => clearInterval(id);
   }, [intervalMs, router]);

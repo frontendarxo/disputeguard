@@ -6,7 +6,7 @@ import { syncDisputes } from "../lib/services/sync";
 
 async function main() {
   loadLocalEnv();
-  const { total, created } = await syncDisputes();
+  const { total, created } = await syncDisputes(0);
   console.log(`\n✔ Synced ${total} disputes from PayPal (${created.length} new).`);
   for (const id of created) console.log(`  + ${id}`);
   console.log();
