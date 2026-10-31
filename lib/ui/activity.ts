@@ -93,13 +93,14 @@ export function groupActivity(entries: ActivityEntry[], limit = 6): ActivityGrou
   return [...groups.entries()]
     .map(([key, list]) => {
       // Oldest first; drop repeats of the same message (e.g. two identical failures in a row).
-      const sorted = [...list]
-        .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
-        .filter((e, i, all) => i === 0 || e.message !== all[i - 1].message);
+      const sorted = [...list].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
       const latest = sorted[sorted.length - 1];
       const outcome = outcomeFor(latest);
       // Once a case ended well, an earlier failed attempt that was retried is just noise.
-      const shown = outcome.tone === "ok" ? sorted.filter((e) => e.type !== "investigation.failed") : sorted;
+      // Then drop repeats that became neighbours (e.g. "Started investigating" twice).
+      const shown = (outcome.tone === "ok" ? sorted.filter((e) => e.type !== "investigation.failed") : sorted).filter(
+        (e, i, all) => i === 0 || e.message !== all[i - 1].message,
+      );
       return { key, disputeId: latest.disputeId, entries: shown, outcome, at: new Date(latest.createdAt) };
     })
     .sort((a, b) => +b.at - +a.at)
