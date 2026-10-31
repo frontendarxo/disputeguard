@@ -4,6 +4,7 @@ import { PayPalApiError } from "../paypal/client";
 import { getDispute, listDisputes } from "../paypal/disputes";
 import { getTrackingForTransaction } from "../paypal/tracking";
 import { findTransaction } from "../paypal/transactions";
+import { normalizeAssessmentInput } from "./normalize";
 import { assessmentSchema } from "./schema";
 
 const MAX_TOOL_OUTPUT = 6000;
@@ -84,9 +85,16 @@ export const investigationTools = {
   }),
 
   submit_assessment: tool({
-    description: "Submit your final, structured assessment of the dispute. Call this exactly once, at the end.",
+    description:
+      "Submit your final, structured assessment of the dispute. Call this once, at the end. keyFacts, evidence and risks must be JSON arrays, not strings.",
     inputSchema: assessmentSchema,
-    execute: async () => ({ received: true }),
+    // Tell the agent exactly what to fix if the format is off, so it can resubmit.
+    execute: async (input) => {
+      const check = assessmentSchema.safeParse(normalizeAssessmentInput(input));
+      return check.success
+        ? { received: true }
+        : { received: false, fix: check.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) };
+    },
   }),
 };
 

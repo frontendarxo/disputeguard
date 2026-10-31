@@ -55,3 +55,26 @@ describe("agent timeline", () => {
     assert.equal(items[0].ok, false);
   });
 });
+
+import { normalizeAssessmentInput } from "../lib/agent/normalize";
+import { assessmentSchema } from "../lib/agent/schema";
+
+describe("assessment normalization", () => {
+  it("accepts lists the model sent as JSON strings", () => {
+    const raw = {
+      recommendation: "refund",
+      confidence: "0.7",
+      deliveryStatus: "not_applicable",
+      summary: "Duplicate charge.",
+      keyFacts: JSON.stringify([{ fact: "Original transaction exists", source: "get_dispute" }]),
+      evidence: JSON.stringify([{ type: "transaction_record", description: "PayPal record", available: true }]),
+      risks: "Check order system",
+      draftResponse: "Refunding the duplicate.",
+    };
+    const parsed = assessmentSchema.safeParse(normalizeAssessmentInput(raw));
+    assert.ok(parsed.success);
+    assert.equal(parsed.data?.keyFacts.length, 1);
+    assert.deepEqual(parsed.data?.risks, ["Check order system"]);
+    assert.equal(parsed.data?.confidence, 0.7);
+  });
+});
