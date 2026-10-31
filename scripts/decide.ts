@@ -3,6 +3,8 @@
  *   npm run decide -- PP-R-TDW-10195416
  */
 import { investigateDispute } from "../lib/agent/investigate";
+import { describeError } from "../lib/errors";
+import { closeDb } from "../lib/db";
 import { loadLocalEnv } from "../lib/env";
 import { getDispute, listDisputes } from "../lib/paypal/disputes";
 import { evaluatePolicy } from "../lib/policy/engine";
@@ -52,7 +54,9 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(`\n✖ ${err instanceof Error ? err.message : String(err)}\n`);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    console.error(`\n✖ ${describeError(err)}\n`);
+    process.exitCode = 1;
+  })
+  .finally(closeDb);

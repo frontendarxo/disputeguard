@@ -4,6 +4,7 @@
  *   npm run investigate -- PP-R-TDW-10195416  -> a specific dispute
  */
 import { investigateDispute } from "../lib/agent/investigate";
+import { describeError } from "../lib/errors";
 import { loadLocalEnv } from "../lib/env";
 import { listDisputes } from "../lib/paypal/disputes";
 
@@ -58,6 +59,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`\n✖ ${err instanceof Error ? err.message : String(err)}\n`);
+  console.error(`\n✖ ${describeError(err)}\n`);
   process.exit(1);
 });

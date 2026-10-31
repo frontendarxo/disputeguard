@@ -15,12 +15,19 @@
     "check:paypal": "tsx scripts/check-paypal.ts",
     "investigate": "tsx scripts/investigate.ts",
     "decide": "tsx scripts/decide.ts",
-    "rule": "tsx scripts/parse-rule.ts"
+    "rule": "tsx scripts/parse-rule.ts",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx scripts/db-seed.ts",
+    "db:check": "tsx scripts/db-check.ts",
+    "sync": "tsx scripts/sync.ts",
+    "process": "tsx scripts/process.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",
     "ai": "^5.0.0",
+    "drizzle-orm": "^0.44.0",
     "next": "^15.3.3",
+    "pg": "^8.16.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^3.25.76"
@@ -28,8 +35,10 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "drizzle-kit": "^0.31.0",
     "tailwindcss": "^4.1.8",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

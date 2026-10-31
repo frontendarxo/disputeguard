@@ -3,6 +3,7 @@
  *   npm run rule -- "Fight automatically if it was delivered and is under $50"
  */
 import { loadLocalEnv } from "../lib/env";
+import { describeError } from "../lib/errors";
 import { parseRule } from "../lib/policy/parse-rule";
 
 async function main() {
@@ -19,6 +20,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`\n✖ ${err instanceof Error ? err.message : String(err)}\n`);
+  console.error(`\n✖ ${describeError(err)}\n`);
   process.exit(1);
 });
