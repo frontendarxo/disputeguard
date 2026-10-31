@@ -21,7 +21,8 @@ Rules:
 
 const DATA_NOTES = `
 About the data:
-- The dispute from get_dispute already contains the transaction record (amount, status, buyer, seller, items). Transaction Search only adds detail; "not found yet" there means an indexing delay, not missing evidence.`;
+- The dispute from get_dispute already contains the transaction record (amount, status, buyer, seller, items). Transaction Search only adds detail; "not found yet" there means an indexing delay, not missing evidence.
+- Check "extensions" in the dispute: for duplicate charges PayPal includes the original transaction there (billing_disputes_properties.duplicate_transaction). Treat it as PayPal's own record.`;
 
 const SANDBOX_NOTES = `
 - This account runs in the PayPal sandbox (test environment). Test payments, shipments and disputes are created minutes apart, and tracking numbers have no carrier scan history. Do not treat short time gaps or missing carrier scan details as suspicious here; judge the case on its substance.`;

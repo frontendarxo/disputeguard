@@ -5,7 +5,7 @@ import { describeError } from "@/lib/errors";
 import { verifyWebhook } from "@/lib/paypal/webhooks";
 import { logActivity } from "@/lib/services/activity";
 import { startInvestigation } from "@/lib/services/process-dispute";
-import { syncDispute } from "@/lib/services/sync";
+import { autoInvestigateEnabled, syncDispute } from "@/lib/services/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         type: "dispute.received",
         message: `New dispute from ${row.buyerName ?? "a buyer"}: ${row.amount} ${row.currency} (via PayPal webhook)`,
       });
-      await startInvestigation(disputeId);
+      if (autoInvestigateEnabled()) await startInvestigation(disputeId);
     } else {
       await syncDispute(disputeId);
     }

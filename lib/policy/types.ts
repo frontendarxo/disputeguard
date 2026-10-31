@@ -58,11 +58,16 @@ export type DeliveryStatus = (typeof deliveryStatuses)[number];
 export interface Guardrails {
   maxAutoAmount: number;
   minConfidence: number;
-  autoStages: string[];
+  /**
+   * Dispute stages where each action may run automatically. Refunds are low-risk
+   * (they can't make the outcome worse), so they may also run on chargebacks;
+   * fighting a chargeback always needs the seller.
+   */
+  autoStages: { fight: string[]; refund: string[] };
 }
 
 export const DEFAULT_GUARDRAILS: Guardrails = {
   maxAutoAmount: 100,
   minConfidence: 0.8,
-  autoStages: ["INQUIRY"],
+  autoStages: { fight: ["INQUIRY"], refund: ["INQUIRY", "CHARGEBACK"] },
 };

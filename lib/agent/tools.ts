@@ -51,6 +51,8 @@ export const investigationTools = {
             items: t.items,
           })),
           messages: d.messages,
+          // Reason-specific details from PayPal, e.g. billing_disputes_properties.duplicate_transaction.original_transaction.
+          extensions: d.extensions,
         };
       }),
   }),

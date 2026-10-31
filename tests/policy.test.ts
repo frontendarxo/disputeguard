@@ -9,7 +9,7 @@ import { DEFAULT_GUARDRAILS, type Guardrails, type Rule } from "../lib/policy/ty
 
 const g: Guardrails = DEFAULT_GUARDRAILS;
 const NOT_RECEIVED = "MERCHANDISE_OR_SERVICE_NOT_RECEIVED";
-const allowedStage = g.autoStages[0];
+const allowedStage = g.autoStages.fight[0];
 const confident = Math.min(1, g.minConfidence + 0.1);
 const smallAmount = g.maxAutoAmount / 2;
 
@@ -68,10 +68,24 @@ describe("policy engine", () => {
     assert.match(d.reason, /confident/);
   });
 
-  it("never acts automatically outside the allowed stages (e.g. chargebacks)", () => {
-    const d = evaluatePolicy(input({ stage: "CHARGEBACK" }), [fightDelivered], g);
+  it("never fights automatically outside the allowed stages (e.g. chargebacks)", () => {
+    const stage = "CHARGEBACK";
+    assert.ok(!g.autoStages.fight.includes(stage));
+    const d = evaluatePolicy(input({ stage }), [fightDelivered], g);
     assert.equal(d.mode, "approval");
     assert.match(d.reason, /chargeback/);
+  });
+
+  it("may refund automatically in any stage listed for refunds", () => {
+    for (const stage of g.autoStages.refund) {
+      const d = evaluatePolicy(input({ stage, recommendation: "refund", deliveryStatus: "lost" }), [refundLost], g);
+      assert.equal(d.mode, "auto", `refund in ${stage}`);
+    }
+  });
+
+  it("never acts in a stage listed for neither action", () => {
+    const d = evaluatePolicy(input({ stage: "ARBITRATION", recommendation: "refund", deliveryStatus: "lost" }), [refundLost], g);
+    assert.equal(d.mode, "approval");
   });
 
   it("asks when the agent leaves the call to the seller", () => {

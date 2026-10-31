@@ -11,13 +11,16 @@ import type { ParsedRule } from "@/lib/policy/types";
 import { logActivity } from "@/lib/services/activity";
 import { executeDecision } from "@/lib/services/execute-decision";
 import { startInvestigation } from "@/lib/services/process-dispute";
-import { syncDispute, syncDisputes } from "@/lib/services/sync";
+import { autoInvestigateEnabled, syncDispute, syncDisputes } from "@/lib/services/sync";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
 
 export async function syncAction(): Promise<ActionResult> {
   try {
     const { total, created } = await syncDisputes();
+    if (autoInvestigateEnabled()) {
+      for (const id of created) await startInvestigation(id).catch((err) => console.error("[auto-investigate]", err));
+    }
     revalidatePath("/", "layout");
     return { ok: true, message: `Synced ${total} disputes (${created.length} new).` };
   } catch (err) {
@@ -150,6 +153,7 @@ export async function importDisputeAction(rawId: string): Promise<ActionResult> 
         type: "dispute.received",
         message: `New dispute from ${row.buyerName ?? "a buyer"}: ${row.amount} ${row.currency}`,
       });
+      if (autoInvestigateEnabled()) await startInvestigation(id).catch((err) => console.error("[auto-investigate]", err));
     }
   } catch (err) {
     return { ok: false, message: describeError(err) };

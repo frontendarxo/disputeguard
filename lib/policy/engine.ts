@@ -39,6 +39,11 @@ function stageName(stage: string) {
   return stage.charAt(0) + stage.slice(1).toLowerCase().replaceAll("_", " ");
 }
 
+/** Stages where the action may run on its own (the stricter fight list when there's no action yet). */
+function stagesFor(action: "fight" | "refund" | null, g: Guardrails) {
+  return action === "refund" ? g.autoStages.refund : g.autoStages.fight;
+}
+
 function fmt(amount: number, currency: string) {
   return `${amount.toFixed(2)} ${currency}`;
 }
@@ -58,9 +63,9 @@ export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Gu
       failReason: "the agent could not reach a clear recommendation",
     },
     {
-      label: `Dispute stage: ${stageName(input.stage)} (automatic action only in ${guardrails.autoStages.map(stageName).join(", ")})`,
-      passed: guardrails.autoStages.includes(input.stage),
-      failReason: `disputes in the ${stageName(input.stage).toLowerCase()} stage always need you`,
+      label: `Dispute stage: ${stageName(input.stage)} (automatic ${action ?? "action"} only in ${stagesFor(action, guardrails).map(stageName).join(", ")})`,
+      passed: stagesFor(action, guardrails).includes(input.stage),
+      failReason: `${action === "fight" ? "fighting a dispute" : "acting on a dispute"} in the ${stageName(input.stage).toLowerCase()} stage always needs you`,
     },
     {
       label: `Amount within auto-limit (${fmt(input.amount, input.currency)} ≤ ${fmt(guardrails.maxAutoAmount, input.currency)})`,

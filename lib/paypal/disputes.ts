@@ -34,6 +34,8 @@ export interface DisputeDetails extends DisputeSummary {
   }>;
   messages?: Array<{ posted_by: string; time_posted: string; content: string }>;
   evidences?: Array<{ evidence_type?: string; source?: string }>;
+  /** Reason-specific details, e.g. the original transaction of a duplicate charge. */
+  extensions?: Record<string, unknown>;
   offer?: unknown;
   links?: Array<{ href: string; rel: string; method: string }>;
 }

@@ -61,8 +61,9 @@ export default async function RulesPage() {
         <div className="flex flex-col gap-1">
           <span className="font-semibold">Always needs your approval</span>
           <span className="text-muted">
-            Disputes over ${g.maxAutoAmount}, anything outside the {g.autoStages.map((s) => s.toLowerCase()).join("/")} stage, and any case where the
-            agent is less than {Math.round(g.minConfidence * 100)}% confident — whatever the rules say.
+            Disputes over ${g.maxAutoAmount}, fighting anything outside the {g.autoStages.fight.map((s) => s.toLowerCase()).join("/")} stage
+            (refunds may also run on {g.autoStages.refund.filter((s) => !g.autoStages.fight.includes(s)).map((s) => s.toLowerCase()).join("/")}
+            disputes), and any case where the agent is less than {Math.round(g.minConfidence * 100)}% confident — whatever the rules say.
           </span>
         </div>
       </section>

@@ -64,3 +64,8 @@ export async function syncDisputes() {
   }
   return { total: ids.length, created };
 }
+
+/** New disputes are investigated automatically unless AUTO_INVESTIGATE=false. */
+export function autoInvestigateEnabled() {
+  return process.env.AUTO_INVESTIGATE?.trim().toLowerCase() !== "false";
+}
