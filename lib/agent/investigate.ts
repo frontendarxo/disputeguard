@@ -1,6 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText, hasToolCall, stepCountIs } from "ai";
-import { SYSTEM_PROMPT } from "./prompt";
+import { buildSystemPrompt } from "./prompt";
 import { assessmentSchema, type Assessment } from "./schema";
 import { investigationTools } from "./tools";
 
@@ -32,7 +32,7 @@ export async function investigateDispute(
 
   const result = await generateText({
     model: anthropic(modelId),
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(),
     prompt: `Investigate PayPal dispute ${disputeId} and submit your assessment.`,
     tools: investigationTools,
     stopWhen: [hasToolCall("submit_assessment"), stepCountIs(12)],

@@ -3,6 +3,7 @@ import { ActivityList } from "@/components/activity-list";
 import { DecisionButtons } from "@/components/decision-buttons";
 import { DisputesGrid } from "@/components/disputes-grid";
 import { KpiCard } from "@/components/kpi-card";
+import { ImportDispute } from "@/components/import-dispute";
 import { SyncButton } from "@/components/sync-button";
 import { getDashboardData } from "@/lib/queries";
 import { money, reasonLabel } from "@/lib/ui/format";
@@ -22,6 +23,7 @@ export default async function DashboardPage() {
           <p className="mt-1.5 text-muted">Your PayPal disputes, investigated by the agent and decided by your rules.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <ImportDispute />
           <SyncButton />
           <Link
             href="/rules"
@@ -89,7 +91,7 @@ export default async function DashboardPage() {
                     {assessment ? ` (${Math.round(assessment.confidence * 100)}% confident)` : ""}. {decision.reason.replace("Needs your approval: ", "Needs you because ")}
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <DecisionButtons decisionId={decision.id} approveLabel="Approve" compact />
+                    <DecisionButtons decisionId={decision.id} action={decision.action} compact />
                     <Link
                       href={`/disputes/${encodeURIComponent(dispute.id)}`}
                       className="flex min-h-10 items-center px-2 font-semibold"

@@ -21,7 +21,8 @@
     "db:check": "tsx scripts/db-check.ts",
     "sync": "tsx scripts/sync.ts",
     "process": "tsx scripts/process.ts",
-    "demo:track": "tsx scripts/demo-track.ts"
+    "demo:track": "tsx scripts/demo-track.ts",
+    "demo:request-evidence": "tsx scripts/demo-request-evidence.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",

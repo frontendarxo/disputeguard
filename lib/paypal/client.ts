@@ -99,9 +99,14 @@ export async function paypalFetch<T>(path: string, init: RequestInit = {}): Prom
 
   if (!res.ok) {
     const body = await res.json().catch(() => undefined);
-    const message =
-      (body as { message?: string } | undefined)?.message ??
-      `PayPal API request failed: ${init.method ?? "GET"} ${path}`;
+    const b = body as { message?: string; details?: Array<{ issue?: string; description?: string; field?: string }> } | undefined;
+    const issues = b?.details
+      ?.map((d) => [d.issue, d.description].filter(Boolean).join(": "))
+      .filter(Boolean)
+      .join("; ");
+    const message = [b?.message ?? `PayPal API request failed: ${init.method ?? "GET"} ${path}`, issues && `— ${issues}`]
+      .filter(Boolean)
+      .join(" ");
     throw new PayPalApiError(
       `${message} (HTTP ${res.status})`,
       res.status,

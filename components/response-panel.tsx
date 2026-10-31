@@ -8,12 +8,12 @@ export function ResponsePanel({
   label,
   draft,
   decisionId,
-  approveLabel,
+  action,
 }: {
   label: string;
   draft: string;
   decisionId: number;
-  approveLabel: string;
+  action: "fight" | "refund" | null;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   return (
@@ -28,7 +28,7 @@ export function ResponsePanel({
         defaultValue={draft}
         className="resize-y rounded-lg border border-gray-300 p-3 leading-normal text-ink"
       />
-      <DecisionButtons decisionId={decisionId} approveLabel={approveLabel} getResponseText={() => ref.current?.value ?? draft} />
+      <DecisionButtons decisionId={decisionId} action={action} getResponseText={() => ref.current?.value ?? draft} />
     </>
   );
 }

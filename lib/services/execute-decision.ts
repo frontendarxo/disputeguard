@@ -1,11 +1,21 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { describeError } from "../errors";
-import { PayPalApiError } from "../paypal/client";
 import { acceptClaim, provideEvidence, sendMessage, type TrackingInfo } from "../paypal/dispute-actions";
+import { allowedActions, getDispute, requestedEvidence } from "../paypal/disputes";
 import { getTrackingForTransaction } from "../paypal/tracking";
 import { logActivity } from "./activity";
 import { syncDispute } from "./sync";
+
+class NotAllowedError extends Error {
+  constructor(status: string, what: string) {
+    super(
+      status === "UNDER_REVIEW"
+        ? `PayPal is reviewing this dispute (UNDER_REVIEW), so the seller can't ${what} right now. Try again when PayPal asks for your response.`
+        : `PayPal doesn't allow the seller to ${what} on this dispute right now (status ${status}).`,
+    );
+  }
+}
 
 type Execution = NonNullable<(typeof schema.decisions.$inferSelect)["execution"]>;
 
@@ -50,35 +60,48 @@ export async function executeDecision(decisionId: number, responseText?: string)
 
   let execution: Execution;
   try {
+    // Ask PayPal what the seller may do right now (HATEOAS links) instead of guessing.
+    const fresh = await getDispute(decision.disputeId);
+    const allowed = allowedActions(fresh);
+    const now = () => new Date().toISOString();
+
     if (decision.action === "refund") {
+      if (!allowed.has("accept_claim")) throw new NotAllowedError(fresh.status, "accept the claim");
       const paypal = await acceptClaim(decision.disputeId, text);
-      execution = { method: "accept_claim", ok: true, detail: "Claim accepted — PayPal refunds the buyer.", paypal, at: new Date().toISOString() };
-    } else {
+      execution = { method: "accept_claim", ok: true, detail: "Claim accepted — PayPal refunds the buyer.", paypal, at: now() };
+    } else if (allowed.has("provide_evidence")) {
       const tracking = await trackingFor(dispute?.sellerTransactionId ?? null);
-      try {
-        const paypal = await provideEvidence(decision.disputeId, text, tracking);
-        execution = {
-          method: "provide_evidence",
-          ok: true,
-          detail: tracking.length ? `Evidence sent with tracking ${tracking.map((t) => t.tracking_number).join(", ")}.` : "Written response sent as evidence.",
-          paypal,
-          at: new Date().toISOString(),
-        };
-      } catch (err) {
-        if (!(err instanceof PayPalApiError) || err.status >= 500) throw err;
-        // Evidence not accepted at this stage (e.g. inquiry) — reply to the buyer instead.
-        const paypal = await sendMessage(decision.disputeId, text);
-        execution = {
-          method: "send_message",
-          ok: true,
-          detail: "PayPal isn't requesting evidence yet, so the response was sent to the buyer as a message.",
-          paypal: { evidenceError: err.message, message: paypal },
-          at: new Date().toISOString(),
-        };
-      }
+      const requested = requestedEvidence(fresh);
+      const useFulfillment = tracking.length > 0 && (requested.length === 0 || requested.includes("PROOF_OF_FULFILLMENT"));
+      const paypal = await provideEvidence(decision.disputeId, text, tracking, useFulfillment ? "PROOF_OF_FULFILLMENT" : "OTHER");
+      execution = {
+        method: "provide_evidence",
+        ok: true,
+        detail: useFulfillment
+          ? `Evidence sent with tracking ${tracking.map((t) => t.tracking_number).join(", ")}.`
+          : "Written response sent as evidence.",
+        paypal,
+        at: now(),
+      };
+    } else if (allowed.has("send_message")) {
+      const paypal = await sendMessage(decision.disputeId, text);
+      execution = {
+        method: "send_message",
+        ok: true,
+        detail: "PayPal isn't asking for evidence yet, so the response was sent to the buyer as a message.",
+        paypal,
+        at: now(),
+      };
+    } else {
+      throw new NotAllowedError(fresh.status, "respond");
     }
   } catch (err) {
-    execution = { method: decision.action === "refund" ? "accept_claim" : "provide_evidence", ok: false, detail: describeError(err), at: new Date().toISOString() };
+    execution = {
+      method: decision.action === "refund" ? "accept_claim" : "provide_evidence",
+      ok: false,
+      detail: describeError(err),
+      at: new Date().toISOString(),
+    };
   }
 
   await db

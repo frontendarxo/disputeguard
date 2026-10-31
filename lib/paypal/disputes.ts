@@ -33,6 +33,7 @@ export interface DisputeDetails extends DisputeSummary {
     items?: Array<{ item_name?: string; item_quantity?: string }>;
   }>;
   messages?: Array<{ posted_by: string; time_posted: string; content: string }>;
+  evidences?: Array<{ evidence_type?: string; source?: string }>;
   offer?: unknown;
   links?: Array<{ href: string; rel: string; method: string }>;
 }
@@ -52,4 +53,16 @@ export async function getDispute(disputeId: string): Promise<DisputeDetails> {
   return paypalFetch<DisputeDetails>(
     `/v1/customer/disputes/${encodeURIComponent(disputeId)}`,
   );
+}
+
+/** Seller actions PayPal currently allows on a dispute, read from its HATEOAS links. */
+export function allowedActions(d: Pick<DisputeDetails, "links">): Set<string> {
+  return new Set((d.links ?? []).map((l) => l.rel));
+}
+
+/** Evidence types PayPal has asked the seller for (e.g. PROOF_OF_FULFILLMENT). */
+export function requestedEvidence(d: Pick<DisputeDetails, "evidences">): string[] {
+  return (d.evidences ?? [])
+    .filter((e) => e.source === "REQUESTED_FROM_SELLER" && e.evidence_type)
+    .map((e) => e.evidence_type!);
 }

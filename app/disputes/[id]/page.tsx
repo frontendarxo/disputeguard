@@ -46,6 +46,10 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
   const buyerMessage = (dispute.raw as { messages?: Array<{ posted_by: string; content: string }> } | null)?.messages?.find(
     (m) => m.posted_by === "BUYER",
   );
+  const paypalActions = new Set(
+    ((dispute.raw as { links?: Array<{ rel: string }> } | null)?.links ?? []).map((l) => l.rel),
+  );
+  const sellerCanRespond = ["accept_claim", "provide_evidence", "send_message"].some((r) => paypalActions.has(r));
   const recTone = a?.recommendation === "fight" ? "text-accent-ink" : a?.recommendation === "refund" ? "text-ink" : "text-warn";
   const recText = a?.recommendation === "fight" ? "Fight this claim" : a?.recommendation === "refund" ? "Refund the buyer" : "Needs your judgement";
 
@@ -232,12 +236,19 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
               )}
 
               <section aria-labelledby="draft-title" className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
+                {!sellerCanRespond && decision && decision.status !== "executed" && (
+                  <p className="rounded-[10px] bg-warn-soft p-3.5 text-warn">
+                    PayPal is {dispute.status === "UNDER_REVIEW" ? "reviewing this dispute" : `holding this dispute (${titleCase(dispute.status)})`} and
+                    isn&apos;t accepting a seller response right now. You can still record your decision; sending will work once PayPal asks for
+                    your response. Sync to refresh.
+                  </p>
+                )}
                 {decision?.status === "pending_approval" ? (
                   <ResponsePanel
                     label={a.recommendation === "refund" ? "Note to the buyer" : "Response to PayPal"}
                     draft={a.draftResponse}
                     decisionId={decision.id}
-                    approveLabel={decision.action === "fight" ? "Approve & send response" : decision.action === "refund" ? "Approve refund" : "Approve"}
+                    action={decision.action}
                   />
                 ) : (
                   <>

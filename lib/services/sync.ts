@@ -43,6 +43,12 @@ export async function syncDisputes() {
     : [];
   const known = new Set(existing.map((e) => e.id));
 
+  // Also refresh disputes we already store that the (sometimes lagging) list didn't return.
+  const stored = await getDb().select({ id: schema.disputes.id }).from(schema.disputes);
+  for (const { id } of stored) {
+    if (!ids.includes(id)) await syncDispute(id).catch(() => undefined);
+  }
+
   const created: string[] = [];
   for (const id of ids) {
     const row = await syncDispute(id);
