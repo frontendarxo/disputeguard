@@ -13,7 +13,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "check:paypal": "tsx scripts/check-paypal.ts",
-    "investigate": "tsx scripts/investigate.ts"
+    "investigate": "tsx scripts/investigate.ts",
+    "decide": "tsx scripts/decide.ts",
+    "rule": "tsx scripts/parse-rule.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",

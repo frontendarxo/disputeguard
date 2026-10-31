@@ -21,6 +21,11 @@ export const assessmentSchema = z.object({
     .min(0)
     .max(1)
     .describe("How confident you are in the recommendation, from 0 to 1."),
+  deliveryStatus: z
+    .enum(["delivered", "in_transit", "shipped_no_tracking_updates", "not_found", "lost", "not_applicable"])
+    .describe(
+      "Delivery status supported by tool results. not_found = no tracking at all; not_applicable = digital goods, services or non-delivery disputes.",
+    ),
   summary: z
     .string()
     .describe("2–4 sentences in plain language for the seller: what happened and why you recommend this."),

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "fight-delivered-under-50",
+    "text": "Fight automatically when the item was delivered and the amount is under $50",
+    "enabled": true,
+    "conditions": {
+      "reasons": ["MERCHANDISE_OR_SERVICE_NOT_RECEIVED"],
+      "deliveryStatus": ["delivered"],
+      "maxAmount": 50
+    },
+    "action": "auto_fight",
+    "explanation": "For 'item not received' disputes up to $50 where tracking shows delivery, contest the claim without asking."
+  },
+  {
+    "id": "refund-duplicate",
+    "text": "If the buyer was charged twice, refund right away",
+    "enabled": true,
+    "conditions": {
+      "reasons": ["DUPLICATE_TRANSACTION"]
+    },
+    "action": "auto_refund",
+    "explanation": "For duplicate-charge disputes of any amount, refund without asking."
+  },
+  {
+    "id": "refund-lost-under-30",
+    "text": "Refund automatically if the parcel was lost or never shipped and it's under $30",
+    "enabled": true,
+    "conditions": {
+      "reasons": ["MERCHANDISE_OR_SERVICE_NOT_RECEIVED"],
+      "deliveryStatus": ["lost", "not_found"],
+      "maxAmount": 30
+    },
+    "action": "auto_refund",
+    "explanation": "For 'item not received' disputes up to $30 with a lost parcel or no tracking, refund without asking."
+  }
+]
