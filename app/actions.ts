@@ -11,7 +11,7 @@ import type { ParsedRule } from "@/lib/policy/types";
 import { logActivity } from "@/lib/services/activity";
 import { executeDecision } from "@/lib/services/execute-decision";
 import { startInvestigation } from "@/lib/services/process-dispute";
-import { autoInvestigateEnabled, syncDispute, syncDisputes } from "@/lib/services/sync";
+import { autoInvestigateEnabled, syncDisputes } from "@/lib/services/sync";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
 
@@ -136,30 +136,6 @@ export async function sendDecisionAction(decisionId: number): Promise<ActionResu
     revalidatePath("/", "layout");
     return { ok: false, message: describeError(err) };
   }
-}
-
-/** Imports one dispute by its ID (PayPal's dispute list can lag a few minutes behind). */
-export async function importDisputeAction(rawId: string): Promise<ActionResult> {
-  const id = rawId.trim();
-  if (!/^PP-[A-Z0-9-]{6,40}$/i.test(id)) return { ok: false, message: "Enter a PayPal dispute ID like PP-R-ABC-12345678." };
-  try {
-    const db = getDb();
-    const [existing] = await db.select({ id: schema.disputes.id }).from(schema.disputes).where(eq(schema.disputes.id, id)).limit(1);
-    const row = await syncDispute(id);
-    if (!existing) {
-      await logActivity({
-        disputeId: id,
-        actor: "system",
-        type: "dispute.received",
-        message: `New dispute from ${row.buyerName ?? "a buyer"}: ${row.amount} ${row.currency}`,
-      });
-      if (autoInvestigateEnabled()) await startInvestigation(id).catch((err) => console.error("[auto-investigate]", err));
-    }
-  } catch (err) {
-    return { ok: false, message: describeError(err) };
-  }
-  revalidatePath("/", "layout");
-  redirect(`/disputes/${encodeURIComponent(id)}`);
 }
 
 export async function deleteRuleAction(ruleId: string) {

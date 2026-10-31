@@ -4,7 +4,6 @@ import { AutoSync } from "@/components/auto-sync";
 import { DecisionButtons } from "@/components/decision-buttons";
 import { DisputesGrid } from "@/components/disputes-grid";
 import { KpiCard } from "@/components/kpi-card";
-import { ImportDispute } from "@/components/import-dispute";
 import { SyncButton } from "@/components/sync-button";
 import { getDashboardData } from "@/lib/queries";
 import { money, reasonLabel } from "@/lib/ui/format";
@@ -25,7 +24,6 @@ export default async function DashboardPage() {
           <p className="mt-1.5 text-muted">Your PayPal disputes, investigated by the agent and decided by your rules.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ImportDispute />
           <SyncButton />
           <Link
             href="/rules"
