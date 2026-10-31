@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ActivityList } from "@/components/activity-list";
+import { AutoSync } from "@/components/auto-sync";
 import { DecisionButtons } from "@/components/decision-buttons";
 import { DisputesGrid } from "@/components/disputes-grid";
 import { KpiCard } from "@/components/kpi-card";
@@ -17,6 +18,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-8 sm:px-8">
+      <AutoSync />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight">Disputes overview</h1>

@@ -42,10 +42,11 @@ interface ListDisputesResponse {
   items?: DisputeSummary[];
 }
 
-export async function listDisputes(pageSize = 50): Promise<DisputeSummary[]> {
-  const data = await paypalFetch<ListDisputesResponse>(
-    `/v1/customer/disputes?page_size=${pageSize}`,
-  );
+/** Lists disputes created in the last `days` days (an explicit window returns fresher results). */
+export async function listDisputes(pageSize = 50, days = 30): Promise<DisputeSummary[]> {
+  const start = new Date(Date.now() - days * 86_400_000).toISOString();
+  const params = new URLSearchParams({ page_size: String(pageSize), start_time: start });
+  const data = await paypalFetch<ListDisputesResponse>(`/v1/customer/disputes?${params.toString()}`);
   return data.items ?? [];
 }
 

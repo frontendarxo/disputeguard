@@ -1,0 +1,19 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { syncAction } from "@/app/actions";
+
+/** Quietly pulls new disputes from PayPal every minute while the dashboard is open. */
+export function AutoSync({ intervalMs = 60_000 }: { intervalMs?: number }) {
+  const router = useRouter();
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const result = await syncAction();
+      if (result.ok && !result.message.includes("(0 new)")) router.refresh();
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs, router]);
+  return null;
+}
