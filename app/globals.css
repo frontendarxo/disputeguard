@@ -1,1 +1,42 @@
 @import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+@theme {
+  --color-ground: #f6f7f9;
+  --color-ink: #0f172a;
+  --color-body: #334155;
+  --color-muted: #475569;
+  --color-line: #e5e7eb;
+  --color-line-soft: #f1f5f9;
+  --color-subtle: #f8fafc;
+  --color-accent: #2563eb;
+  --color-accent-ink: #1d4ed8;
+  --color-accent-soft: #eff4ff;
+  --color-warn: #9a3412;
+  --color-warn-line: #fed7aa;
+  --color-warn-soft: #fff7ed;
+  --color-ok: #166534;
+  --color-ok-strong: #15803d;
+  --color-ok-soft: #ecfdf5;
+  --color-danger: #b91c1c;
+}
+
+/* Base styles live in a layer so Tailwind utility classes (e.g. text-white) can override them. */
+@layer base {
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+  }
+
+  a {
+    color: var(--color-accent-ink);
+  }
+
+  a:hover {
+    color: #1e3a8a;
+  }
+}

@@ -1,0 +1,98 @@
+"use server";
+
+import { desc, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getDb, schema } from "@/lib/db";
+import { describeError } from "@/lib/errors";
+import { parseRule } from "@/lib/policy/parse-rule";
+import { upsertRule } from "@/lib/policy/rules-store";
+import type { ParsedRule } from "@/lib/policy/types";
+import { logActivity } from "@/lib/services/activity";
+import { startInvestigation } from "@/lib/services/process-dispute";
+import { syncDisputes } from "@/lib/services/sync";
+
+export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
+
+export async function syncAction(): Promise<ActionResult> {
+  try {
+    const { total, created } = await syncDisputes();
+    revalidatePath("/", "layout");
+    return { ok: true, message: `Synced ${total} disputes (${created.length} new).` };
+  } catch (err) {
+    return { ok: false, message: describeError(err) };
+  }
+}
+
+export async function investigateAction(disputeId: string) {
+  // Don't reopen a case you have already approved or rejected.
+  const [latest] = await getDb()
+    .select({ status: schema.decisions.status })
+    .from(schema.decisions)
+    .where(eq(schema.decisions.disputeId, disputeId))
+    .orderBy(desc(schema.decisions.createdAt))
+    .limit(1);
+  if (!latest || latest.status === "pending_approval" || latest.status === "failed") {
+    await startInvestigation(disputeId);
+  }
+  revalidatePath("/", "layout");
+  redirect(`/disputes/${encodeURIComponent(disputeId)}`);
+}
+
+async function resolveDecision(decisionId: number, status: "approved" | "rejected") {
+  const db = getDb();
+  const [decision] = await db
+    .update(schema.decisions)
+    .set({ status, resolvedAt: new Date() })
+    .where(eq(schema.decisions.id, decisionId))
+    .returning();
+  if (!decision) throw new Error("Decision not found.");
+
+  await logActivity({
+    disputeId: decision.disputeId,
+    actor: "seller",
+    type: status === "approved" ? "decision.approved" : "decision.rejected",
+    message:
+      status === "approved"
+        ? `You approved: ${decision.action ?? "the recommendation"}`
+        : "You rejected the agent's recommendation",
+    data: { decisionId },
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function approveDecisionAction(decisionId: number) {
+  await resolveDecision(decisionId, "approved");
+}
+
+export async function rejectDecisionAction(decisionId: number) {
+  await resolveDecision(decisionId, "rejected");
+}
+
+export async function previewRuleAction(text: string): Promise<{ ok: true; rule: ParsedRule } | { ok: false; message: string }> {
+  const trimmed = text.trim();
+  if (trimmed.length < 8) return { ok: false, message: "Describe the rule in a few words." };
+  if (trimmed.length > 300) return { ok: false, message: "Keep the rule under 300 characters." };
+  try {
+    return { ok: true, rule: await parseRule(trimmed) };
+  } catch (err) {
+    return { ok: false, message: describeError(err) };
+  }
+}
+
+export async function saveRuleAction(text: string, rule: ParsedRule): Promise<ActionResult> {
+  try {
+    const id = `rule-${Date.now().toString(36)}`;
+    await upsertRule({ ...rule, id, text: text.trim(), enabled: true });
+    await logActivity({ actor: "seller", type: "rule.created", message: `Added rule: “${text.trim()}”` });
+    revalidatePath("/rules");
+    return { ok: true, message: "Rule saved." };
+  } catch (err) {
+    return { ok: false, message: describeError(err) };
+  }
+}
+
+export async function toggleRuleAction(ruleId: string, enabled: boolean) {
+  await getDb().update(schema.rules).set({ enabled }).where(eq(schema.rules.id, ruleId));
+  revalidatePath("/rules");
+}

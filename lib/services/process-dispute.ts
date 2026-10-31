@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { investigateDispute, type AgentStepEvent } from "../agent/investigate";
 import { evaluatePolicy } from "../policy/engine";
@@ -11,14 +11,21 @@ import { syncDispute } from "./sync";
  * The core pipeline: refresh the dispute from PayPal, let the agent investigate,
  * let the policy engine decide, and store everything (with live step updates).
  */
-export async function processDispute(disputeId: string, options: { onStep?: (s: AgentStepEvent) => void } = {}) {
+export async function processDispute(
+  disputeId: string,
+  options: { onStep?: (s: AgentStepEvent) => void; investigationId?: number } = {},
+) {
   const db = getDb();
   const dispute = await syncDispute(disputeId);
 
-  const [investigation] = await db
-    .insert(schema.investigations)
-    .values({ disputeId, status: "running" })
-    .returning({ id: schema.investigations.id });
+  const investigation = options.investigationId
+    ? { id: options.investigationId }
+    : (
+        await db
+          .insert(schema.investigations)
+          .values({ disputeId, status: "running" })
+          .returning({ id: schema.investigations.id })
+      )[0];
 
   await logActivity({ disputeId, actor: "agent", type: "investigation.started", message: "Started investigating" });
 
@@ -90,4 +97,29 @@ export async function processDispute(disputeId: string, options: { onStep?: (s: 
     await logActivity({ disputeId, actor: "agent", type: "investigation.failed", message: `Investigation failed: ${message}` });
     throw err;
   }
+}
+
+/**
+ * Starts an investigation in the background (for the UI) and returns its id right away.
+ * Reuses an investigation that is already running for this dispute.
+ */
+export async function startInvestigation(disputeId: string): Promise<number> {
+  const db = getDb();
+  const [running] = await db
+    .select({ id: schema.investigations.id })
+    .from(schema.investigations)
+    .where(and(eq(schema.investigations.disputeId, disputeId), eq(schema.investigations.status, "running")))
+    .limit(1);
+  if (running) return running.id;
+
+  await syncDispute(disputeId);
+  const [created] = await db
+    .insert(schema.investigations)
+    .values({ disputeId, status: "running" })
+    .returning({ id: schema.investigations.id });
+
+  void processDispute(disputeId, { investigationId: created.id }).catch((err) => {
+    console.error(`[investigation ${created.id}]`, err);
+  });
+  return created.id;
 }
