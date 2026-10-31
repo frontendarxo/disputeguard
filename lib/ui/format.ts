@@ -56,3 +56,18 @@ export function titleCase(value: string | null | undefined) {
   if (!value) return "—";
   return value.charAt(0) + value.slice(1).toLowerCase().replaceAll("_", " ");
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const ENUM_WORDS = new Set(["CHARGEBACK", "INQUIRY", "ARBITRATION", "HELD", "RESOLVED", "OPEN", "LOST", "WON", "COMPLETED", "PENDING", "DENIED"]);
+
+/** Turns raw API values in agent text into plain language (ISO times → "Oct 31, 2:39 PM UTC", ENUM_VALUES → words). */
+export function humanizeText(text: string) {
+  return text
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?Z\b/g, (_m, _y, mo, d, h, mi) => {
+      const hour = Number(h);
+      return `${MONTHS[Number(mo) - 1]} ${Number(d)}, ${hour % 12 || 12}:${mi} ${hour < 12 ? "AM" : "PM"} UTC`;
+    })
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_m, y, mo, d) => `${MONTHS[Number(mo) - 1]} ${Number(d)}, ${y}`)
+    .replace(/\b[A-Z]{2,}(?:_[A-Z]{2,})+\b/g, (m) => REASONS[m]?.toLowerCase() ?? m.replaceAll("_", " ").toLowerCase())
+    .replace(/\b[A-Z]{4,}\b/g, (m) => (ENUM_WORDS.has(m) ? m.toLowerCase() : m));
+}

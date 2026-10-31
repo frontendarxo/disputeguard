@@ -14,6 +14,9 @@ export interface TimelineItem {
   detail: string;
   tool: string;
   ok: boolean;
+  /** ok = useful finding, empty = looked but nothing there, error = tool failed */
+  tone: "ok" | "empty" | "error";
+  count: number;
 }
 
 function summarize(tool: string, output: unknown): { detail: string; ok: boolean } {
@@ -57,7 +60,13 @@ export function toTimeline(steps: AgentStepEvent[]): TimelineItem[] {
       if (call.tool === "submit_assessment") return;
       const result = step.toolResults.find((r) => r.tool === call.tool) ?? step.toolResults[i];
       const { detail, ok } = result ? summarize(call.tool, result.output) : { detail: "Working…", ok: true };
-      items.push({ key: `${step.index}-${i}`, title: TITLES[call.tool] ?? call.tool, detail, tool: call.tool, ok });
+      const tone = ok ? "ok" : detail.startsWith("PayPal returned an error") ? "error" : "empty";
+      const prev = items[items.length - 1];
+      if (prev && prev.tool === call.tool && prev.detail === detail) {
+        prev.count += 1; // same lookup repeated: show once with "×2"
+        return;
+      }
+      items.push({ key: `${step.index}-${i}`, title: TITLES[call.tool] ?? call.tool, detail, tool: call.tool, ok, tone, count: 1 });
     });
   }
   return items;

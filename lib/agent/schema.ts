@@ -32,7 +32,7 @@ export const assessmentSchema = z.object({
   keyFacts: z
     .array(
       z.object({
-        fact: z.string().describe("A single verified fact."),
+        fact: z.string().describe("A single verified fact in plain language (no raw enum values or ISO timestamps)."),
         source: z.string().describe("Which tool or data the fact came from, e.g. get_dispute."),
       }),
     )

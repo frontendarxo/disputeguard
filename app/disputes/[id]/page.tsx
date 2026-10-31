@@ -6,7 +6,7 @@ import { ResponsePanel } from "@/components/response-panel";
 import { SendButton } from "@/components/send-button";
 import { StatusChip } from "@/components/status-chip";
 import { getDisputeDetail } from "@/lib/queries";
-import { money, reasonLabel, shortDate, titleCase } from "@/lib/ui/format";
+import { humanizeText, money, reasonLabel, shortDate, shortDateTime, titleCase } from "@/lib/ui/format";
 import { toTimeline } from "@/lib/ui/steps";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +32,43 @@ function Check({ ok }: { ok: boolean }) {
   );
 }
 
+type Outcome = { tone: "ok" | "warn" | "danger" | "info" | "neutral"; title: string; detail: string };
+
+function outcomeOf(
+  decision: { status: string; mode: string; action?: string | null; reason: string; execution?: { ok: boolean; detail: string } | null; executedAt?: Date | null } | null,
+): Outcome | null {
+  if (!decision) return null;
+  const by = decision.mode === "auto" ? "automatically" : "after your approval";
+  const when = decision.executedAt ? ` · ${shortDateTime(decision.executedAt)}` : "";
+  switch (decision.status) {
+    case "executed":
+      return {
+        tone: "ok",
+        title: decision.action === "refund" ? `Refunded ${by}` : `Response sent ${by}`,
+        detail: `${decision.execution?.detail ?? "PayPal accepted the action."}${when}`,
+      };
+    case "failed":
+      return { tone: "danger", title: "PayPal didn't accept the action", detail: decision.execution?.detail ?? "Try sending again." };
+    case "pending_approval":
+      return { tone: "warn", title: "Waiting for your approval", detail: decision.reason.replace(/^Needs your approval: /, "The agent needs you because ") };
+    case "executing":
+    case "approved":
+      return { tone: "info", title: decision.status === "executing" ? "Sending to PayPal…" : "Approved — ready to send", detail: decision.reason };
+    case "rejected":
+      return { tone: "neutral", title: "You rejected this recommendation", detail: "Nothing was sent to PayPal." };
+    default:
+      return null;
+  }
+}
+
+const OUTCOME_STYLES: Record<Outcome["tone"], string> = {
+  ok: "border-ok-line bg-ok-soft text-ok",
+  warn: "border-warn-line bg-warn-soft text-warn",
+  danger: "border-red-200 bg-red-50 text-danger",
+  info: "border-accent-soft bg-accent-soft text-accent-ink",
+  neutral: "border-line bg-subtle text-body",
+};
+
 export default async function DisputePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const detail = await getDisputeDetail(decodeURIComponent(id));
@@ -52,6 +89,8 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
   const sellerCanRespond = ["accept_claim", "provide_evidence", "send_message"].some((r) => paypalActions.has(r));
   const recTone = a?.recommendation === "fight" ? "text-accent-ink" : a?.recommendation === "refund" ? "text-ink" : "text-warn";
   const recText = a?.recommendation === "fight" ? "Fight this claim" : a?.recommendation === "refund" ? "Refund the buyer" : "Needs your judgement";
+  const outcome = outcomeOf(decision);
+  const closed = dispute.status === "RESOLVED";
 
   return (
     <main className="mx-auto flex max-w-[1280px] flex-col gap-5 px-4 pb-10 pt-6 sm:px-8">
@@ -89,11 +128,23 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
             <dd className="text-xl font-bold">{titleCase(dispute.stage)}</dd>
           </div>
           <div className="flex flex-col gap-0.5">
-            <dt className="text-xs font-medium text-muted">Respond by</dt>
-            <dd className="text-xl font-bold">{shortDate(dispute.responseDueAt)}</dd>
+            <dt className="text-xs font-medium text-muted">{closed ? "Resolved" : "Respond by"}</dt>
+            <dd className="text-xl font-bold">{closed ? shortDate(decision?.executedAt ?? null) : shortDate(dispute.responseDueAt)}</dd>
           </div>
         </dl>
       </section>
+
+      {outcome && (
+        <section aria-label="Outcome" className={`flex items-start gap-3 rounded-xl border px-5 py-4 ${OUTCOME_STYLES[outcome.tone]}`}>
+          <span className="mt-0.5 flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-white/70">
+            <Check ok={outcome.tone !== "warn" && outcome.tone !== "danger"} />
+          </span>
+          <span className="flex flex-col gap-0.5">
+            <span className="text-base font-semibold">{outcome.title}</span>
+            <span className="text-body">{outcome.detail}</span>
+          </span>
+        </section>
+      )}
 
       <div className="flex flex-wrap items-start gap-5">
         <section aria-labelledby="inv-title" className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
@@ -123,16 +174,27 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
                   <li key={item.key} className="flex gap-3.5">
                     <span className="flex flex-col items-center">
                       <span
-                        className={`flex size-6 flex-shrink-0 items-center justify-center rounded-full ${item.ok ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"}`}
+                        className={`flex size-6 flex-shrink-0 items-center justify-center rounded-full ${
+                          item.tone === "ok" ? "bg-ok-soft text-ok" : item.tone === "error" ? "bg-warn-soft text-warn" : "bg-subtle text-muted"
+                        }`}
                       >
-                        <Check ok={item.ok} />
+                        {item.tone === "empty" ? (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                            <path d="M6 12h12" />
+                          </svg>
+                        ) : (
+                          <Check ok={item.tone === "ok"} />
+                        )}
                       </span>
                       <span className="min-h-4 w-0.5 flex-grow bg-line" />
                     </span>
                     <span className="flex flex-col gap-1 pb-4">
-                      <span className="font-semibold">{item.title}</span>
+                      <span className="font-semibold">
+                        {item.title}
+                        {item.count > 1 && <span className="ml-1.5 text-xs font-medium text-muted">×{item.count}</span>}
+                      </span>
                       {item.detail && <span className="text-body">{item.detail}</span>}
-                      <span className="font-mono text-xs text-muted">{item.tool}</span>
+                      <span className="font-mono text-[11px] text-muted">{item.tool}</span>
                     </span>
                   </li>
                 ))}
@@ -165,11 +227,14 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
           {a && a.keyFacts.length > 0 && (
             <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
               <h2 className="text-base font-semibold">What the agent found</h2>
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-2.5">
                 {a.keyFacts.map((f, i) => (
-                  <li key={i} className="flex flex-wrap items-baseline gap-2">
-                    <span className="text-body">{f.fact}</span>
-                    <span className="font-mono text-xs text-muted">{f.source}</span>
+                  <li key={i} className="flex gap-3 border-b border-line pb-2.5 last:border-0 last:pb-0">
+                    <span className="mt-2 size-1.5 flex-shrink-0 rounded-full bg-gray-400" aria-hidden="true" />
+                    <span className="flex min-w-0 flex-col gap-1">
+                      <span className="text-body">{humanizeText(f.fact)}</span>
+                      <span className="self-start rounded bg-subtle px-1.5 py-0.5 font-mono text-[11px] text-muted">{f.source}</span>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -182,6 +247,28 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
               <blockquote className="rounded-[10px] bg-subtle px-4 py-3.5 text-body">“{buyerMessage.content}”</blockquote>
             </div>
           )}
+        {a && a.evidence.length > 0 && (
+              <section aria-labelledby="ev-title" className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
+                <h2 id="ev-title" className="text-base font-semibold">
+                  Evidence
+                </h2>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {a.evidence.map((e, i) => (
+                    <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
+                      <span className="flex flex-col gap-0.5">
+                        <span className="font-semibold">{EVIDENCE_LABELS[e.type] ?? e.type}</span>
+                        <span className="text-xs text-muted">{e.description}</span>
+                      </span>
+                      <span
+                        className={`whitespace-nowrap text-xs font-semibold ${e.available ? "text-ok" : a.recommendation === "fight" ? "text-warn" : "text-muted"}`}
+                      >
+                        {e.available ? "Available" : a.recommendation === "fight" ? "Missing" : "Not found"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
         </section>
 
         <aside className="flex min-w-0 flex-[1_1_380px] flex-col gap-5">
@@ -213,31 +300,12 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
                         </li>
                       ))}
                     </ul>
-                    <span className={`mt-1 font-semibold ${decision.mode === "auto" ? "text-ok" : "text-warn"}`}>{decision.reason}</span>
+                    <span className={`mt-1 font-semibold ${decision.mode === "auto" ? "text-ok" : "text-warn"}`}>
+                      {decision.status === "executed" ? decision.reason.replace(/^Acting automatically:/, "Done automatically:") : decision.reason}
+                    </span>
                   </div>
                 )}
               </section>
-
-              {a.evidence.length > 0 && (
-                <section aria-labelledby="ev-title" className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
-                  <h2 id="ev-title" className="text-base font-semibold">
-                    Evidence
-                  </h2>
-                  <ul className="flex flex-col gap-2">
-                    {a.evidence.map((e, i) => (
-                      <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
-                        <span className="flex flex-col gap-0.5">
-                          <span className="font-semibold">{EVIDENCE_LABELS[e.type] ?? e.type}</span>
-                          <span className="text-xs text-muted">{e.description}</span>
-                        </span>
-                        <span className={`whitespace-nowrap text-xs font-semibold ${e.available ? "text-ok" : "text-warn"}`}>
-                          {e.available ? "Available" : "Missing"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
 
               <section aria-labelledby="draft-title" className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
                 {!sellerCanRespond && decision && decision.status !== "executed" && (
@@ -263,22 +331,11 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
                       {decision?.responseText ?? a.draftResponse}
                     </p>
                     {decision?.execution && (
-                      <div
-                        className={`flex flex-col gap-1 rounded-[10px] p-3.5 ${decision.execution.ok ? "bg-ok-soft text-ok" : "bg-red-50 text-danger"}`}
-                      >
-                        <span className="font-semibold">
-                          {decision.execution.ok ? "✓ PayPal accepted the action" : "PayPal action failed"}
-                          <span className="ml-2 font-mono text-xs font-medium">{decision.execution.method}</span>
-                        </span>
-                        <span>{decision.execution.detail}</span>
-                      </div>
+                      <span className="text-xs text-muted">
+                        PayPal API call: <span className="font-mono">{decision.execution.method}</span>
+                      </span>
                     )}
-                    {decision && !decision.execution && (
-                      <p className="font-semibold text-muted">
-                        {decision.status === "rejected" && "You rejected this recommendation."}
-                        {decision.status === "executing" && "Sending to PayPal…"}
-                      </p>
-                    )}
+                    {decision?.status === "executing" && <p className="font-semibold text-muted">Sending to PayPal…</p>}
                     {decision && (decision.status === "approved" || decision.status === "failed") && decision.action && (
                       <SendButton decisionId={decision.id} label={decision.status === "failed" ? "Try again" : "Send to PayPal"} />
                     )}

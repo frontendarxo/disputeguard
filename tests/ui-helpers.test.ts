@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { daysUntil, money, reasonLabel } from "../lib/ui/format";
+import { daysUntil, humanizeText, money, reasonLabel } from "../lib/ui/format";
 import { conditionChips } from "../lib/ui/rules";
 import { deriveStatus } from "../lib/ui/status";
 import { toTimeline } from "../lib/ui/steps";
@@ -76,5 +76,17 @@ describe("assessment normalization", () => {
     assert.equal(parsed.data?.keyFacts.length, 1);
     assert.deepEqual(parsed.data?.risks, ["Check order system"]);
     assert.equal(parsed.data?.confidence, 0.7);
+  });
+});
+
+describe("humanizeText", () => {
+  it("turns raw API values into plain language and keeps IDs", () => {
+    const out = humanizeText(
+      "Dispute reason is DUPLICATE_TRANSACTION, stage CHARGEBACK, status WAITING_FOR_SELLER_RESPONSE, due 2026-11-10. Transaction 6WD73411WA246342E created 2026-10-31T14:39:57Z, status HELD, USD 20.00.",
+    );
+    assert.equal(
+      out,
+      "Dispute reason is duplicate charge, stage chargeback, status waiting for seller response, due Nov 10, 2026. Transaction 6WD73411WA246342E created Oct 31, 2:39 PM UTC, status held, USD 20.00.",
+    );
   });
 });

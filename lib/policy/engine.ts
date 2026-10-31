@@ -63,6 +63,8 @@ export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Gu
   // The stricter (fight) threshold applies while there's no clear action.
   const minConfidence = action === "refund" ? guardrails.minConfidence.refund : guardrails.minConfidence.fight;
 
+  const stageOk = stagesFor(action, guardrails).includes(input.stage);
+
   const checks: PolicyCheck[] = [
     {
       label: "Agent reached a clear recommendation",
@@ -70,8 +72,8 @@ export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Gu
       failReason: "the agent could not reach a clear recommendation",
     },
     {
-      label: `Dispute stage: ${stageName(input.stage)} (automatic ${action ?? "action"} only in ${stagesFor(action, guardrails).map(stageName).join(", ")})`,
-      passed: stagesFor(action, guardrails).includes(input.stage),
+      label: `${stageName(input.stage)} stage: automatic ${action === "fight" ? "fighting" : action === "refund" ? "refunds" : "actions"} ${stageOk ? "allowed" : "not allowed"} here`,
+      passed: stageOk,
       failReason: `${action === "fight" ? "fighting a dispute" : "acting on a dispute"} in the ${stageName(input.stage).toLowerCase()} stage always needs you`,
     },
     {
