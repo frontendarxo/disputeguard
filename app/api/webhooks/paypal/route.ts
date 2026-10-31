@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { getDb, schema } from "@/lib/db";
 import { describeError } from "@/lib/errors";
 import { verifyWebhook } from "@/lib/paypal/webhooks";
 import { logActivity } from "@/lib/services/activity";
@@ -38,6 +40,12 @@ export async function POST(request: Request) {
 
   try {
     if (event.event_type === "CUSTOMER.DISPUTE.CREATED") {
+      // PayPal may deliver the same event more than once: only act the first time.
+      const [known] = await getDb().select({ id: schema.disputes.id }).from(schema.disputes).where(eq(schema.disputes.id, disputeId)).limit(1);
+      if (known) {
+        await syncDispute(disputeId);
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
       const row = await syncDispute(disputeId);
       await logActivity({
         disputeId,

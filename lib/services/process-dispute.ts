@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { investigateDispute, type AgentStepEvent } from "../agent/investigate";
 import { evaluatePolicy } from "../policy/engine";
@@ -118,6 +118,16 @@ export async function startInvestigation(disputeId: string): Promise<number> {
     .where(and(eq(schema.investigations.disputeId, disputeId), eq(schema.investigations.status, "running")))
     .limit(1);
   if (running) return running.id;
+
+  // Protects the public demo from runaway AI costs.
+  const limit = Number(process.env.MAX_INVESTIGATIONS_PER_HOUR ?? 30);
+  const [{ value: recent }] = await db
+    .select({ value: count() })
+    .from(schema.investigations)
+    .where(gte(schema.investigations.startedAt, new Date(Date.now() - 3_600_000)));
+  if (recent >= limit) {
+    throw new Error(`Investigation limit reached (${limit} per hour). Please try again later.`);
+  }
 
   await syncDispute(disputeId);
   const [created] = await db

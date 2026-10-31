@@ -34,7 +34,11 @@ export async function investigateAction(disputeId: string) {
     .orderBy(desc(schema.decisions.createdAt))
     .limit(1);
   if (!latest || latest.status === "pending_approval" || latest.status === "failed") {
-    await startInvestigation(disputeId);
+    try {
+      await startInvestigation(disputeId);
+    } catch (err) {
+      await logActivity({ disputeId, actor: "system", type: "investigation.blocked", message: describeError(err) });
+    }
   }
   revalidatePath("/", "layout");
   redirect(`/disputes/${encodeURIComponent(disputeId)}`);
@@ -152,4 +156,10 @@ export async function importDisputeAction(rawId: string): Promise<ActionResult> 
   }
   revalidatePath("/", "layout");
   redirect(`/disputes/${encodeURIComponent(id)}`);
+}
+
+export async function deleteRuleAction(ruleId: string) {
+  const [rule] = await getDb().delete(schema.rules).where(eq(schema.rules.id, ruleId)).returning();
+  if (rule) await logActivity({ actor: "seller", type: "rule.deleted", message: `Removed rule: “${rule.text}”` });
+  revalidatePath("/rules");
 }

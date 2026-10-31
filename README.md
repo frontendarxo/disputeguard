@@ -1,5 +1,7 @@
 # DisputeGuard
 
+[![CI](https://github.com/frontendarxo/disputeguard/actions/workflows/ci.yml/badge.svg)](https://github.com/frontendarxo/disputeguard/actions/workflows/ci.yml)
+
 **AI agent that protects small businesses' money in PayPal disputes.**
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). Runs on the PayPal **sandbox** only.
@@ -15,6 +17,7 @@ npm install
 cp .env.example .env.local   # then paste your Sandbox Client ID and Secret
 npm run check:paypal          # verifies credentials and lists sandbox disputes
 npm run dev                   # http://localhost:3000
+npm test                      # policy engine and UI helper tests
 ```
 
 ## License

@@ -35,6 +35,10 @@ function ruleMatches(rule: Rule, input: PolicyInput): boolean {
   return true;
 }
 
+function stageName(stage: string) {
+  return stage.charAt(0) + stage.slice(1).toLowerCase().replaceAll("_", " ");
+}
+
 function fmt(amount: number, currency: string) {
   return `${amount.toFixed(2)} ${currency}`;
 }
@@ -54,9 +58,9 @@ export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Gu
       failReason: "the agent could not reach a clear recommendation",
     },
     {
-      label: `Dispute stage allows automatic action (${guardrails.autoStages.join(", ")})`,
+      label: `Dispute stage: ${stageName(input.stage)} (automatic action only in ${guardrails.autoStages.map(stageName).join(", ")})`,
       passed: guardrails.autoStages.includes(input.stage),
-      failReason: `disputes in the ${input.stage} stage always need you`,
+      failReason: `disputes in the ${stageName(input.stage).toLowerCase()} stage always need you`,
     },
     {
       label: `Amount within auto-limit (${fmt(input.amount, input.currency)} ≤ ${fmt(guardrails.maxAutoAmount, input.currency)})`,

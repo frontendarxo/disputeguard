@@ -1,4 +1,5 @@
 import { RuleComposer } from "@/components/rule-composer";
+import { RuleDelete } from "@/components/rule-delete";
 import { RuleToggle } from "@/components/rule-toggle";
 import { loadRules } from "@/lib/policy/rules-store";
 import { DEFAULT_GUARDRAILS } from "@/lib/policy/types";
@@ -45,7 +46,10 @@ export default async function RulesPage() {
                 <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${ACTION_CLASSES[rule.action]}`}>{ACTION_LABELS[rule.action]}</span>
               </div>
             </div>
-            <RuleToggle ruleId={rule.id} enabled={rule.enabled} />
+            <div className="flex items-center gap-1">
+              <RuleToggle ruleId={rule.id} enabled={rule.enabled} />
+              <RuleDelete ruleId={rule.id} text={rule.text} />
+            </div>
           </article>
         ))}
       </section>
