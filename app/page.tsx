@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ActivityList } from "@/components/activity-list";
+import { ActivityFeed } from "@/components/activity-feed";
 import { AutoSync } from "@/components/auto-sync";
 import { DecisionButtons } from "@/components/decision-buttons";
 import { DisputesGrid } from "@/components/disputes-grid";
@@ -11,7 +11,7 @@ import { money, reasonLabel } from "@/lib/ui/format";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { rows, kpis, approvals, activity } = await getDashboardData();
+  const { rows, kpis, approvals, activity, disputeInfo } = await getDashboardData();
   const now = Date.now();
   const autoPct = kpis.decidedCount ? Math.round((kpis.autoCount / kpis.decidedCount) * 100) : 0;
 
@@ -62,55 +62,54 @@ export default async function DashboardPage() {
         />
       </section>
 
+      {approvals.length > 0 && (
+        <section id="approvals" aria-labelledby="approve-title" className="flex flex-col gap-3.5 rounded-xl border border-warn-line bg-white p-5">
+          <div className="flex items-center gap-2">
+            <h2 id="approve-title" className="text-base font-semibold">
+              Needs your approval
+            </h2>
+            <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">{kpis.awaitingCount}</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {approvals.map(({ decision, dispute, assessment }) => (
+              <div key={decision.id} className="flex flex-col gap-2.5 rounded-[10px] border border-line p-3.5">
+                <div className="flex justify-between gap-2">
+                  <span className="font-semibold">
+                    {dispute.buyerName ?? "Buyer"} · {money(dispute.amount, dispute.currency)}
+                  </span>
+                  <span className="text-[13px] text-muted">{reasonLabel(dispute.reason)}</span>
+                </div>
+                <p className="text-body">
+                  Agent suggests{" "}
+                  <strong>{decision.action === "fight" ? "fighting" : decision.action === "refund" ? "a refund" : "your review"}</strong>
+                  {assessment ? ` (${Math.round(assessment.confidence * 100)}% confident)` : ""}.{" "}
+                  {decision.reason.replace("Needs your approval: ", "Needs you because ")}
+                </p>
+                <div className="mt-auto flex flex-wrap items-center gap-2">
+                  <DecisionButtons decisionId={decision.id} action={decision.action} compact />
+                  <Link href={`/disputes/${encodeURIComponent(dispute.id)}`} className="flex min-h-10 items-center px-2 font-semibold">
+                    Review
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <DisputesGrid rows={rows} />
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-          <section id="approvals" aria-labelledby="approve-title" className="flex flex-col gap-3.5 rounded-xl border border-line bg-white p-5">
-            <div className="flex items-center justify-between gap-2">
-              <h2 id="approve-title" className="text-base font-semibold">
-                Needs your approval
-              </h2>
-              <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-semibold text-warn">{kpis.awaitingCount}</span>
-            </div>
-            {approvals.length === 0 ? (
-              <p className="text-muted">Nothing waiting for you.</p>
-            ) : (
-              approvals.map(({ decision, dispute, assessment }) => (
-                <div key={decision.id} className="flex flex-col gap-2.5 rounded-[10px] border border-line p-3.5">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-semibold">
-                      {dispute.buyerName ?? "Buyer"} · {money(dispute.amount, dispute.currency)}
-                    </span>
-                    <span className="text-[13px] text-muted">{reasonLabel(dispute.reason)}</span>
-                  </div>
-                  <p className="text-body">
-                    Agent suggests <strong>{decision.action === "fight" ? "fighting" : decision.action === "refund" ? "a refund" : "your review"}</strong>
-                    {assessment ? ` (${Math.round(assessment.confidence * 100)}% confident)` : ""}. {decision.reason.replace("Needs your approval: ", "Needs you because ")}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DecisionButtons decisionId={decision.id} action={decision.action} compact />
-                    <Link
-                      href={`/disputes/${encodeURIComponent(dispute.id)}`}
-                      className="flex min-h-10 items-center px-2 font-semibold"
-                    >
-                      Review
-                    </Link>
-                  </div>
-                </div>
-              ))
-            )}
-          </section>
-
-          <section aria-labelledby="activity-title" className="flex flex-col gap-3.5 rounded-xl border border-line bg-white p-5">
-            <h2 id="activity-title" className="text-base font-semibold">
-              Agent activity
-            </h2>
-            <ActivityList entries={activity} now={now} />
-            <Link href="/activity" className="text-[13px] font-semibold">
-              View full activity log
-            </Link>
-          </section>
-      </div>
+      <section aria-labelledby="activity-title" className="flex flex-col gap-3.5 rounded-xl border border-line bg-white p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="activity-title" className="text-base font-semibold">
+            Agent activity
+          </h2>
+          <Link href="/activity" className="text-[13px] font-semibold">
+            View full log
+          </Link>
+        </div>
+        <ActivityFeed entries={activity} disputes={disputeInfo} now={now} />
+      </section>
     </main>
   );
 }

@@ -49,7 +49,7 @@ export async function getDashboardData() {
     db.select().from(schema.disputes).orderBy(desc(schema.disputes.paypalCreatedAt)),
     db.select().from(schema.investigations).orderBy(desc(schema.investigations.startedAt)),
     db.select().from(schema.decisions).orderBy(desc(schema.decisions.createdAt)),
-    db.select().from(schema.activityLog).orderBy(desc(schema.activityLog.createdAt)).limit(8),
+    db.select().from(schema.activityLog).orderBy(desc(schema.activityLog.createdAt)).limit(60),
   ]);
 
   const latestInv = latestBy(investigations);
@@ -81,7 +81,11 @@ export async function getDashboardData() {
     })
     .slice(0, 3);
 
-  return { rows, kpis, approvals, activity };
+  const disputeInfo = Object.fromEntries(
+    disputes.map((d) => [d.id, { buyer: d.buyerName ?? "Buyer", amount: d.amount, currency: d.currency, reason: d.reason }]),
+  );
+
+  return { rows, kpis, approvals, activity, disputeInfo };
 }
 
 export async function getDisputeRows() {
@@ -117,6 +121,14 @@ export async function getDisputeDetail(id: string) {
   };
 }
 
-export async function getActivity(limit = 100) {
-  return getDb().select().from(schema.activityLog).orderBy(desc(schema.activityLog.createdAt)).limit(limit);
+export async function getActivity(limit = 300) {
+  const db = getDb();
+  const [entries, disputes] = await Promise.all([
+    db.select().from(schema.activityLog).orderBy(desc(schema.activityLog.createdAt)).limit(limit),
+    db.select().from(schema.disputes),
+  ]);
+  const disputeInfo = Object.fromEntries(
+    disputes.map((d) => [d.id, { buyer: d.buyerName ?? "Buyer", amount: d.amount, currency: d.currency, reason: d.reason }]),
+  );
+  return { entries, disputeInfo };
 }
