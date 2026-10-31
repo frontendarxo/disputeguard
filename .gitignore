@@ -20,3 +20,6 @@ npm-debug.log*
 # local database
 *.db
 *.db-journal
+
+# Video voiceover (working files, not part of the app)
+docs/voiceover/
