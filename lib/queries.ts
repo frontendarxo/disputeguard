@@ -13,6 +13,8 @@ export interface DisputeRow {
   reason: string;
   amount: number;
   currency: string;
+  items: string | null;
+  openedAt: string | null;
   dueAt: string | null;
   recommendation: string | null;
   confidence: number | null;
@@ -32,6 +34,8 @@ function toRow(d: Dispute, inv?: Investigation, dec?: Decision): DisputeRow {
     reason: d.reason,
     amount: Number(d.amount),
     currency: d.currency,
+    items: d.items,
+    openedAt: d.paypalCreatedAt?.toISOString() ?? null,
     dueAt: d.responseDueAt?.toISOString() ?? null,
     recommendation: inv?.assessment?.recommendation ?? null,
     confidence: inv?.assessment?.confidence ?? null,

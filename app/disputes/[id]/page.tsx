@@ -75,7 +75,11 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
             {dispute.items ? ` · ${dispute.items}` : ""} · <span className="font-mono text-[13px]">{dispute.id}</span>
           </span>
         </div>
-        <dl className="grid grid-cols-[repeat(3,minmax(110px,auto))] gap-x-8 gap-y-2">
+        <dl className="grid grid-cols-[repeat(2,minmax(110px,auto))] gap-x-8 gap-y-3 sm:grid-cols-[repeat(4,minmax(110px,auto))]">
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-xs font-medium text-muted">Opened</dt>
+            <dd className="text-xl font-bold">{shortDate(dispute.paypalCreatedAt)}</dd>
+          </div>
           <div className="flex flex-col gap-0.5">
             <dt className="text-xs font-medium text-muted">Amount</dt>
             <dd className="text-xl font-bold">{money(dispute.amount, dispute.currency)}</dd>

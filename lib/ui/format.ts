@@ -12,6 +12,11 @@ export function shortDate(date: Date | string | null | undefined) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(date));
 }
 
+export function shortDateTime(date: Date | string | null | undefined) {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(date));
+}
+
 export function relativeTime(date: Date | string | null | undefined, now = Date.now()) {
   if (!date) return "";
   const diff = Math.round((now - new Date(date).getTime()) / 1000);

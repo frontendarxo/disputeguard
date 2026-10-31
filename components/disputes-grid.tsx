@@ -5,7 +5,7 @@ import { AgGridReact } from "ag-grid-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { DisputeRow } from "@/lib/queries";
-import { daysUntil, money, reasonLabel, shortDate } from "@/lib/ui/format";
+import { daysUntil, money, reasonLabel, shortDate, shortDateTime } from "@/lib/ui/format";
 import { recommendationLabel } from "@/lib/ui/status";
 import { StatusChip } from "./status-chip";
 
@@ -36,7 +36,7 @@ function DisputeCell({ data }: ICellRendererParams<DisputeRow>) {
   return (
     <div className="flex flex-col justify-center gap-0.5 leading-tight">
       <span className="font-semibold">{data.buyer}</span>
-      <span className="font-mono text-xs text-muted">{data.id}</span>
+      <span className="truncate text-xs text-muted">{data.items ?? reasonLabel(data.reason)}</span>
     </div>
   );
 }
@@ -103,6 +103,15 @@ export function DisputesGrid({ rows }: { rows: DisputeRow[] }) {
         cellClass: "font-semibold tabular-nums",
         flex: 0.8,
         minWidth: 110,
+      },
+      {
+        headerName: "Opened",
+        field: "openedAt",
+        sort: "desc",
+        valueFormatter: (p) => (p.value ? shortDateTime(p.value) : "—"),
+        cellClass: "text-body",
+        flex: 0.9,
+        minWidth: 130,
       },
       { headerName: "Respond by", field: "dueAt", cellRenderer: DueCell, flex: 0.9, minWidth: 130 },
       {
