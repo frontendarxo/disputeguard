@@ -62,12 +62,9 @@ export default async function DashboardPage() {
         />
       </section>
 
-      <div className="flex flex-wrap items-start gap-6">
-        <div className="min-w-0 flex-[999_1_640px]">
-          <DisputesGrid rows={rows} />
-        </div>
+      <DisputesGrid rows={rows} />
 
-        <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-6">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
           <section id="approvals" aria-labelledby="approve-title" className="flex flex-col gap-3.5 rounded-xl border border-line bg-white p-5">
             <div className="flex items-center justify-between gap-2">
               <h2 id="approve-title" className="text-base font-semibold">
@@ -113,7 +110,6 @@ export default async function DashboardPage() {
               View full activity log
             </Link>
           </section>
-        </aside>
       </div>
     </main>
   );

@@ -36,7 +36,7 @@ function DisputeCell({ data }: ICellRendererParams<DisputeRow>) {
   return (
     <div className="flex flex-col justify-center gap-0.5 leading-tight">
       <span className="font-semibold">{data.buyer}</span>
-      <span className="truncate text-xs text-muted">{data.items ?? reasonLabel(data.reason)}</span>
+      {data.items && <span className="truncate text-xs text-muted">{data.items}</span>}
     </div>
   );
 }
@@ -65,7 +65,7 @@ function RecommendationCell({ data }: ICellRendererParams<DisputeRow>) {
         <span className="h-1 flex-grow overflow-hidden rounded-full bg-line">
           <span className={`block h-1 ${color}`} style={{ width: `${pct}%` }} />
         </span>
-        <span className="text-xs tabular-nums text-muted">{pct}%</span>
+        <span className="w-9 flex-shrink-0 text-right text-xs tabular-nums text-muted">{pct}%</span>
       </span>
     </div>
   );
@@ -93,33 +93,34 @@ export function DisputesGrid({ rows }: { rows: DisputeRow[] }) {
 
   const columns = useMemo<ColDef<DisputeRow>[]>(
     () => [
-      { headerName: "Dispute", field: "buyer", cellRenderer: DisputeCell, flex: 1.5, minWidth: 200 },
-      { headerName: "Reason", field: "reason", valueFormatter: (p) => reasonLabel(p.value ?? ""), flex: 1.3, minWidth: 150 },
+      { headerName: "Dispute", field: "buyer", cellRenderer: DisputeCell, flex: 1.4, minWidth: 190 },
+      { headerName: "Reason", field: "reason", valueFormatter: (p) => reasonLabel(p.value ?? ""), flex: 1.1, minWidth: 150 },
       {
         headerName: "Amount",
         field: "amount",
         type: "rightAligned",
         valueFormatter: (p) => (p.data ? money(p.data.amount, p.data.currency) : ""),
-        cellClass: "font-semibold tabular-nums",
-        flex: 0.8,
-        minWidth: 110,
+        // Keep AG Grid's right alignment class alongside our own styling.
+        cellClass: ["ag-right-aligned-cell", "font-semibold", "tabular-nums"],
+        flex: 0.7,
+        minWidth: 100,
       },
       {
         headerName: "Opened",
         field: "openedAt",
         sort: "desc",
         valueFormatter: (p) => (p.value ? shortDateTime(p.value) : "—"),
-        cellClass: "text-body",
-        flex: 0.9,
-        minWidth: 130,
+        cellClass: "text-body tabular-nums",
+        flex: 1,
+        minWidth: 150,
       },
-      { headerName: "Respond by", field: "dueAt", cellRenderer: DueCell, flex: 0.9, minWidth: 130 },
+      { headerName: "Respond by", field: "dueAt", cellRenderer: DueCell, flex: 0.9, minWidth: 120 },
       {
         headerName: "Agent recommendation",
         field: "confidence",
         cellRenderer: RecommendationCell,
-        flex: 1.3,
-        minWidth: 180,
+        flex: 1.2,
+        minWidth: 170,
       },
       {
         headerName: "Status",
@@ -127,7 +128,7 @@ export function DisputesGrid({ rows }: { rows: DisputeRow[] }) {
         cellRenderer: StatusCell,
         comparator: (a: DisputeRow["status"], b: DisputeRow["status"]) => a.label.localeCompare(b.label),
         flex: 1,
-        minWidth: 160,
+        minWidth: 150,
       },
     ],
     [],

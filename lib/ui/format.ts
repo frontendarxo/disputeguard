@@ -14,7 +14,10 @@ export function shortDate(date: Date | string | null | undefined) {
 
 export function shortDateTime(date: Date | string | null | undefined) {
   if (!date) return "—";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(date));
+  const d = new Date(date);
+  const day = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(d);
+  const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(d);
+  return `${day} · ${time}`;
 }
 
 export function relativeTime(date: Date | string | null | undefined, now = Date.now()) {
