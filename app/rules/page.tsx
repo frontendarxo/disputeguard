@@ -63,7 +63,8 @@ export default async function RulesPage() {
           <span className="text-muted">
             Disputes over ${g.maxAutoAmount}, fighting anything outside the {g.autoStages.fight.map((s) => s.toLowerCase()).join("/")} stage
             (refunds may also run on {g.autoStages.refund.filter((s) => !g.autoStages.fight.includes(s)).map((s) => s.toLowerCase()).join("/")}
-            disputes), and any case where the agent is less than {Math.round(g.minConfidence * 100)}% confident — whatever the rules say.
+            disputes), and any case where the agent is less confident than {Math.round(g.minConfidence.fight * 100)}% to fight or{" "}
+            {Math.round(g.minConfidence.refund * 100)}% to refund — whatever the rules say.
           </span>
         </div>
       </section>

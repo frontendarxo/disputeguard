@@ -57,7 +57,8 @@ export type DeliveryStatus = (typeof deliveryStatuses)[number];
 /** Hard limits that apply no matter what the rules say. */
 export interface Guardrails {
   maxAutoAmount: number;
-  minConfidence: number;
+  /** Minimum agent confidence per action. A wrong refund costs less than a wrong fight. */
+  minConfidence: { fight: number; refund: number };
   /**
    * Dispute stages where each action may run automatically. Refunds are low-risk
    * (they can't make the outcome worse), so they may also run on chargebacks;
@@ -68,6 +69,6 @@ export interface Guardrails {
 
 export const DEFAULT_GUARDRAILS: Guardrails = {
   maxAutoAmount: 100,
-  minConfidence: 0.8,
+  minConfidence: { fight: 0.8, refund: 0.65 },
   autoStages: { fight: ["INQUIRY"], refund: ["INQUIRY", "CHARGEBACK"] },
 };

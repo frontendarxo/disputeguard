@@ -44,6 +44,10 @@ function stagesFor(action: "fight" | "refund" | null, g: Guardrails) {
   return action === "refund" ? g.autoStages.refund : g.autoStages.fight;
 }
 
+function pct(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
 function fmt(amount: number, currency: string) {
   return `${amount.toFixed(2)} ${currency}`;
 }
@@ -55,6 +59,9 @@ function fmt(amount: number, currency: string) {
 export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Guardrails): PolicyDecision {
   const active = rules.filter((r) => r.enabled);
   const action = input.recommendation === "needs_human" ? null : input.recommendation;
+
+  // The stricter (fight) threshold applies while there's no clear action.
+  const minConfidence = action === "refund" ? guardrails.minConfidence.refund : guardrails.minConfidence.fight;
 
   const checks: PolicyCheck[] = [
     {
@@ -73,9 +80,9 @@ export function evaluatePolicy(input: PolicyInput, rules: Rule[], guardrails: Gu
       failReason: `${fmt(input.amount, input.currency)} is over your ${fmt(guardrails.maxAutoAmount, input.currency)} auto-limit`,
     },
     {
-      label: `Confidence at least ${Math.round(guardrails.minConfidence * 100)}% (agent: ${Math.round(input.confidence * 100)}%)`,
-      passed: input.confidence >= guardrails.minConfidence,
-      failReason: `the agent is only ${Math.round(input.confidence * 100)}% confident (minimum ${Math.round(guardrails.minConfidence * 100)}%)`,
+      label: `Confidence at least ${pct(minConfidence)} for ${action ?? "acting"} (agent: ${pct(input.confidence)})`,
+      passed: input.confidence >= minConfidence,
+      failReason: `the agent is only ${pct(input.confidence)} confident (minimum ${pct(minConfidence)} to ${action ?? "act"})`,
     },
   ];
 

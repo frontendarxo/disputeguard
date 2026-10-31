@@ -10,7 +10,7 @@ import { DEFAULT_GUARDRAILS, type Guardrails, type Rule } from "../lib/policy/ty
 const g: Guardrails = DEFAULT_GUARDRAILS;
 const NOT_RECEIVED = "MERCHANDISE_OR_SERVICE_NOT_RECEIVED";
 const allowedStage = g.autoStages.fight[0];
-const confident = Math.min(1, g.minConfidence + 0.1);
+const confident = Math.min(1, Math.max(g.minConfidence.fight, g.minConfidence.refund) + 0.1);
 const smallAmount = g.maxAutoAmount / 2;
 
 function rule(partial: Partial<Rule> & Pick<Rule, "action">): Rule {
@@ -62,10 +62,28 @@ describe("policy engine", () => {
     assert.match(d.reason, /auto-limit/);
   });
 
-  it("asks when the agent is below the confidence threshold", () => {
-    const d = evaluatePolicy(input({ confidence: g.minConfidence - 0.01 }), [fightDelivered], g);
-    assert.equal(d.mode, "approval");
-    assert.match(d.reason, /confident/);
+  it("asks when the agent is below the confidence threshold for the action", () => {
+    const fight = evaluatePolicy(input({ confidence: g.minConfidence.fight - 0.01 }), [fightDelivered], g);
+    assert.equal(fight.mode, "approval");
+    assert.match(fight.reason, /confident/);
+
+    const refund = evaluatePolicy(
+      input({ recommendation: "refund", deliveryStatus: "lost", confidence: g.minConfidence.refund - 0.01 }),
+      [refundLost],
+      g,
+    );
+    assert.equal(refund.mode, "approval");
+  });
+
+  it("uses each action's own confidence threshold", () => {
+    const between = (g.minConfidence.fight + g.minConfidence.refund) / 2;
+    const lower = Math.min(g.minConfidence.fight, g.minConfidence.refund);
+    const higher = Math.max(g.minConfidence.fight, g.minConfidence.refund);
+    if (lower === higher) return; // same threshold for both: nothing to compare
+    const refund = evaluatePolicy(input({ recommendation: "refund", deliveryStatus: "lost", confidence: between }), [refundLost], g);
+    const fight = evaluatePolicy(input({ confidence: between }), [fightDelivered], g);
+    assert.equal(refund.mode, g.minConfidence.refund <= between ? "auto" : "approval");
+    assert.equal(fight.mode, g.minConfidence.fight <= between ? "auto" : "approval");
   });
 
   it("never fights automatically outside the allowed stages (e.g. chargebacks)", () => {
