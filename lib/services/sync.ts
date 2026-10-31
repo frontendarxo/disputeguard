@@ -1,6 +1,7 @@
 import { inArray } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { getDispute, listDisputes, type DisputeDetails } from "../paypal/disputes";
+import { isHiddenDispute } from "../hidden";
 import { logActivity } from "./activity";
 
 function toRow(d: DisputeDetails) {
@@ -58,7 +59,7 @@ export async function syncDisputes(minIntervalMs = 20_000): Promise<SyncResult> 
 
 async function runSync(): Promise<SyncResult> {
   const summaries = await listDisputes(50);
-  const ids = summaries.map((s) => s.dispute_id);
+  const ids = summaries.map((s) => s.dispute_id).filter((id) => !isHiddenDispute(id));
 
   const existing = ids.length
     ? await getDb().select({ id: schema.disputes.id }).from(schema.disputes).where(inArray(schema.disputes.id, ids))
@@ -68,7 +69,7 @@ async function runSync(): Promise<SyncResult> {
   // Also refresh disputes we already store that the (sometimes lagging) list didn't return.
   const stored = await getDb().select({ id: schema.disputes.id }).from(schema.disputes);
   for (const { id } of stored) {
-    if (!ids.includes(id)) await syncDispute(id).catch(() => undefined);
+    if (!ids.includes(id) && !isHiddenDispute(id)) await syncDispute(id).catch(() => undefined);
   }
 
   const created: string[] = [];

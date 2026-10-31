@@ -17,6 +17,7 @@ async function trackersFor(transactionId: string | null): Promise<Tracker[]> {
     return [];
   }
 }
+import { isHiddenDispute } from "../hidden";
 import { logActivity } from "./activity";
 import { executeDecision } from "./execute-decision";
 import { syncDispute } from "./sync";
@@ -144,6 +145,7 @@ export async function processDispute(
  * Reuses an investigation that is already running for this dispute.
  */
 export async function startInvestigation(disputeId: string): Promise<number> {
+  if (isHiddenDispute(disputeId)) throw new Error("This dispute is hidden in the app.");
   const db = getDb();
   const [running] = await db
     .select({ id: schema.investigations.id })

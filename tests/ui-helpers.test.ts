@@ -90,3 +90,12 @@ describe("humanizeText", () => {
     );
   });
 });
+
+describe("isHiddenDispute", () => {
+  it("matches full IDs and fragments from the list", async () => {
+    const { isHiddenDispute } = await import("../lib/hidden");
+    assert.equal(isHiddenDispute("PP-R-KMV-10195470", "KMV, XOA"), true);
+    assert.equal(isHiddenDispute("PP-R-XGN-10195483", "KMV, XOA"), false);
+    assert.equal(isHiddenDispute("PP-R-KMV-10195470", ""), false);
+  });
+});

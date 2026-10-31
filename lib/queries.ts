@@ -1,6 +1,7 @@
 import "server-only";
 import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "./db";
+import { isHiddenDispute } from "./hidden";
 import { deriveStatus, type DisputeStatus } from "./ui/status";
 
 type Dispute = typeof schema.disputes.$inferSelect;
@@ -45,12 +46,16 @@ function toRow(d: Dispute, inv?: Investigation, dec?: Decision): DisputeRow {
 
 export async function getDashboardData() {
   const db = getDb();
-  const [disputes, investigations, decisions, activity] = await Promise.all([
+  const [allDisputes, allInvestigations, allDecisions, allActivity] = await Promise.all([
     db.select().from(schema.disputes).orderBy(desc(schema.disputes.paypalCreatedAt)),
     db.select().from(schema.investigations).orderBy(desc(schema.investigations.startedAt)),
     db.select().from(schema.decisions).orderBy(desc(schema.decisions.createdAt)),
-    db.select().from(schema.activityLog).orderBy(desc(schema.activityLog.createdAt)).limit(60),
+    db.select().from(schema.activityLog).orderBy(desc(schema.activityLog.createdAt)).limit(80),
   ]);
+  const disputes = allDisputes.filter((d) => !isHiddenDispute(d.id));
+  const investigations = allInvestigations.filter((i) => !isHiddenDispute(i.disputeId));
+  const decisions = allDecisions.filter((d) => !isHiddenDispute(d.disputeId));
+  const activity = allActivity.filter((a) => !isHiddenDispute(a.disputeId)).slice(0, 60);
 
   const latestInv = latestBy(investigations);
   const latestDec = latestBy(decisions);
@@ -93,6 +98,7 @@ export async function getDisputeRows() {
 }
 
 export async function getDisputeDetail(id: string) {
+  if (isHiddenDispute(id)) return null;
   const db = getDb();
   const [dispute] = await db.select().from(schema.disputes).where(eq(schema.disputes.id, id)).limit(1);
   if (!dispute) return null;
@@ -130,5 +136,5 @@ export async function getActivity(limit = 300) {
   const disputeInfo = Object.fromEntries(
     disputes.map((d) => [d.id, { buyer: d.buyerName ?? "Buyer", amount: d.amount, currency: d.currency, reason: d.reason }]),
   );
-  return { entries, disputeInfo };
+  return { entries: entries.filter((e) => !isHiddenDispute(e.disputeId)), disputeInfo };
 }

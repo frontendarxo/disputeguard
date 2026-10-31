@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb, schema } from "@/lib/db";
 import { describeError } from "@/lib/errors";
+import { isHiddenDispute } from "@/lib/hidden";
 import { verifyWebhook } from "@/lib/paypal/webhooks";
 import { logActivity } from "@/lib/services/activity";
 import { startInvestigation } from "@/lib/services/process-dispute";
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const disputeId = event.resource?.dispute_id;
-  if (!disputeId || !event.event_type.startsWith("CUSTOMER.DISPUTE.")) {
+  if (!disputeId || !event.event_type.startsWith("CUSTOMER.DISPUTE.") || isHiddenDispute(disputeId)) {
     return NextResponse.json({ ignored: true });
   }
 

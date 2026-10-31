@@ -69,6 +69,9 @@ function outcomeFor(latest: ActivityEntry): ActivityGroup["outcome"] {
     case "dispute.received":
       return { label: "Received", tone: "neutral" };
     default:
+      if (latest.type === "action.failed" && /UNDER_REVIEW|under review|reviewing/i.test(latest.message)) {
+        return { label: "PayPal reviewing", tone: "info" };
+      }
       if (latest.type.includes("failed") || latest.type.includes("blocked")) return { label: "Failed", tone: "danger" };
       if (latest.type.startsWith("rule.")) return { label: "Rules updated", tone: "neutral" };
       return { label: "Updated", tone: "neutral" };

@@ -37,6 +37,8 @@ export function deriveStatus(
     case "executed":
       return { label: decision.action === "refund" ? "Refunded" : "Response sent", tone: "ok" };
     case "failed":
+      // PayPal reviewing the case (seller can't respond yet) isn't a failure of the app.
+      if (paypalStatus === "UNDER_REVIEW") return { label: "PayPal reviewing", tone: "info" };
       return { label: "Action failed", tone: "danger" };
     default:
       return { label: decision.status, tone: "neutral" };
