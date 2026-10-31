@@ -97,7 +97,10 @@ export function groupActivity(entries: ActivityEntry[], limit = 6): ActivityGrou
         .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
         .filter((e, i, all) => i === 0 || e.message !== all[i - 1].message);
       const latest = sorted[sorted.length - 1];
-      return { key, disputeId: latest.disputeId, entries: sorted, outcome: outcomeFor(latest), at: new Date(latest.createdAt) };
+      const outcome = outcomeFor(latest);
+      // Once a case ended well, an earlier failed attempt that was retried is just noise.
+      const shown = outcome.tone === "ok" ? sorted.filter((e) => e.type !== "investigation.failed") : sorted;
+      return { key, disputeId: latest.disputeId, entries: shown, outcome, at: new Date(latest.createdAt) };
     })
     .sort((a, b) => +b.at - +a.at)
     .slice(0, limit);

@@ -290,7 +290,7 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
                 </h2>
                 <div className="flex items-baseline justify-between gap-3">
                   <span className={`text-[22px] font-bold ${recTone}`}>{recText}</span>
-                  <span className="font-semibold tabular-nums">{Math.round(a.confidence * 100)}% confident</span>
+                  <span className="whitespace-nowrap font-semibold tabular-nums">{Math.round(a.confidence * 100)}% confident</span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-line">
                   <div className="h-1.5 bg-accent" style={{ width: `${Math.round(a.confidence * 100)}%` }} />

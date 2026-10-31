@@ -34,8 +34,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <section aria-label="Key metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Money at risk" value={money(kpis.atRisk, kpis.currency)} hint={`${kpis.openCount} open disputes`} />
+      <section aria-label="Key metrics" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <KpiCard label="Money at risk" value={money(kpis.atRisk, kpis.currency)} hint={`${kpis.openCount} open ${kpis.openCount === 1 ? "dispute" : "disputes"}`} />
         <KpiCard
           label="Protected by the agent"
           value={money(kpis.protected, kpis.currency)}

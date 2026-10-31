@@ -2,6 +2,7 @@
 
 import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef, type GridApi, type ICellRendererParams } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { DisputeRow } from "@/lib/queries";
@@ -40,7 +41,7 @@ function fitColumns(api: GridApi<DisputeRow>, width: number) {
 function DisputeCell({ data }: ICellRendererParams<DisputeRow>) {
   if (!data) return null;
   return (
-    <div className="flex h-full flex-col justify-center gap-0.5 leading-tight">
+    <div className="flex h-full w-full min-w-0 flex-col justify-center gap-0.5 leading-tight">
       <span className="font-semibold">{data.buyer}</span>
       {data.items && <span className="truncate text-xs text-muted">{data.items}</span>}
     </div>
@@ -65,7 +66,7 @@ function RecommendationCell({ data }: ICellRendererParams<DisputeRow>) {
   const color = data.recommendation === "fight" ? "bg-accent-ink" : data.recommendation === "refund" ? "bg-muted" : "bg-warn";
   const text = data.recommendation === "fight" ? "text-accent-ink" : data.recommendation === "refund" ? "text-muted" : "text-warn";
   return (
-    <div className="flex h-full flex-col justify-center gap-1.5 leading-tight">
+    <div className="flex h-full w-full flex-col justify-center gap-1.5 leading-tight">
       <span className={`font-semibold ${text}`}>{recommendationLabel[data.recommendation]}</span>
       <span className="flex items-center gap-2">
         <span className="h-1 flex-grow overflow-hidden rounded-full bg-line">
@@ -171,7 +172,29 @@ export function DisputesGrid({ rows }: { rows: DisputeRow[] }) {
       {rows.length === 0 ? (
         <p className="px-5 py-12 text-center text-muted">No disputes yet. Click “Sync with PayPal” to pull them in.</p>
       ) : (
-        <div style={{ height: Math.min(64 * visible.length + 44, 560) }}>
+        <>
+        {/* Phones get a simple list: a 5-column table can't fit 375px. */}
+        <ul className="divide-y divide-line sm:hidden">
+          {visible.map((r) => (
+            <li key={r.id}>
+              <Link href={`/disputes/${encodeURIComponent(r.id)}`} className="flex flex-col gap-1.5 px-5 py-3.5 text-ink no-underline hover:bg-subtle">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="truncate font-semibold">{r.buyer}</span>
+                  <span className="font-semibold tabular-nums">{money(r.amount, r.currency)}</span>
+                </span>
+                <span className="flex items-center justify-between gap-3">
+                  <span className="truncate text-[13px] text-muted">
+                    {reasonLabel(r.reason)}
+                    {r.recommendation ? ` · ${recommendationLabel[r.recommendation]} ${Math.round((r.confidence ?? 0) * 100)}%` : ""}
+                  </span>
+                  <StatusChip status={r.status} />
+                </span>
+              </Link>
+            </li>
+          ))}
+          {visible.length === 0 && <li className="px-5 py-8 text-center text-muted">No disputes match this filter.</li>}
+        </ul>
+        <div className="hidden sm:block" style={{ height: Math.min(64 * visible.length + 44, 560) }}>
           <AgGridReact<DisputeRow>
             theme={theme}
             rowData={visible}
@@ -188,6 +211,7 @@ export function DisputesGrid({ rows }: { rows: DisputeRow[] }) {
             overlayNoRowsTemplate="<span>No disputes match this filter.</span>"
           />
         </div>
+        </>
       )}
     </section>
   );
