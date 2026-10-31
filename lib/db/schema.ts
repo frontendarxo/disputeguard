@@ -53,6 +53,17 @@ export const decisions = pgTable(
       .notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    /** The text actually sent to PayPal (the agent's draft, possibly edited by the seller). */
+    responseText: text("response_text"),
+    /** What was sent and what PayPal answered. */
+    execution: jsonb("execution").$type<{
+      method: "accept_claim" | "provide_evidence" | "send_message";
+      ok: boolean;
+      detail: string;
+      paypal?: unknown;
+      at: string;
+    }>(),
+    executedAt: timestamp("executed_at", { withTimezone: true }),
   },
   (t) => [index("decisions_dispute_idx").on(t.disputeId)],
 );

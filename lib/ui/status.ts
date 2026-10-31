@@ -11,6 +11,7 @@ interface InvestigationLike {
 interface DecisionLike {
   mode: "auto" | "approval";
   status: string;
+  action?: "fight" | "refund" | null;
 }
 
 /** One status for the UI, combining the latest investigation and decision. */
@@ -34,7 +35,7 @@ export function deriveStatus(
     case "executing":
       return { label: "Sending…", tone: "info" };
     case "executed":
-      return { label: "Done", tone: "ok" };
+      return { label: decision.action === "refund" ? "Refunded" : "Response sent", tone: "ok" };
     case "failed":
       return { label: "Action failed", tone: "danger" };
     default:

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DecisionButtons } from "@/components/decision-buttons";
 import { InvestigateButton } from "@/components/investigate-button";
 import { LiveRefresh } from "@/components/live-refresh";
+import { ResponsePanel } from "@/components/response-panel";
+import { SendButton } from "@/components/send-button";
 import { StatusChip } from "@/components/status-chip";
 import { getDisputeDetail } from "@/lib/queries";
 import { money, reasonLabel, shortDate, titleCase } from "@/lib/ui/format";
@@ -50,7 +51,7 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto flex max-w-[1280px] flex-col gap-5 px-4 pb-10 pt-6 sm:px-8">
-      <LiveRefresh active={running} />
+      <LiveRefresh active={running || decision?.status === "executing"} />
 
       <Link href="/" className="inline-flex items-center gap-1.5 self-start font-medium text-muted no-underline hover:text-ink">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -231,28 +232,43 @@ export default async function DisputePage({ params }: { params: Promise<{ id: st
               )}
 
               <section aria-labelledby="draft-title" className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
-                <label id="draft-title" htmlFor="draft" className="text-base font-semibold">
-                  {a.recommendation === "refund" ? "Note to the buyer" : "Response to PayPal"}
-                </label>
-                <textarea
-                  id="draft"
-                  rows={6}
-                  defaultValue={a.draftResponse}
-                  className="resize-y rounded-lg border border-gray-300 p-3 leading-normal text-ink"
-                />
                 {decision?.status === "pending_approval" ? (
-                  <DecisionButtons
+                  <ResponsePanel
+                    label={a.recommendation === "refund" ? "Note to the buyer" : "Response to PayPal"}
+                    draft={a.draftResponse}
                     decisionId={decision.id}
-                    approveLabel={decision.action === "fight" ? "Approve: fight" : decision.action === "refund" ? "Approve: refund" : "Approve"}
+                    approveLabel={decision.action === "fight" ? "Approve & send response" : decision.action === "refund" ? "Approve refund" : "Approve"}
                   />
-                ) : decision ? (
-                  <p className="font-semibold text-muted">
-                    {decision.status === "approved" && decision.mode === "auto" && "Approved automatically by your rules."}
-                    {decision.status === "approved" && decision.mode === "approval" && "You approved this action."}
-                    {decision.status === "rejected" && "You rejected this recommendation."}
-                    {decision.status === "executed" && "Sent to PayPal."}
-                  </p>
-                ) : null}
+                ) : (
+                  <>
+                    <h2 id="draft-title" className="text-base font-semibold">
+                      {decision?.execution ? "Sent to PayPal" : a.recommendation === "refund" ? "Note to the buyer" : "Response to PayPal"}
+                    </h2>
+                    <p className="whitespace-pre-line rounded-lg bg-subtle p-3 leading-normal text-body">
+                      {decision?.responseText ?? a.draftResponse}
+                    </p>
+                    {decision?.execution && (
+                      <div
+                        className={`flex flex-col gap-1 rounded-[10px] p-3.5 ${decision.execution.ok ? "bg-ok-soft text-ok" : "bg-red-50 text-danger"}`}
+                      >
+                        <span className="font-semibold">
+                          {decision.execution.ok ? "✓ PayPal accepted the action" : "PayPal action failed"}
+                          <span className="ml-2 font-mono text-xs font-medium">{decision.execution.method}</span>
+                        </span>
+                        <span>{decision.execution.detail}</span>
+                      </div>
+                    )}
+                    {decision && !decision.execution && (
+                      <p className="font-semibold text-muted">
+                        {decision.status === "rejected" && "You rejected this recommendation."}
+                        {decision.status === "executing" && "Sending to PayPal…"}
+                      </p>
+                    )}
+                    {decision && (decision.status === "approved" || decision.status === "failed") && decision.action && (
+                      <SendButton decisionId={decision.id} label={decision.status === "failed" ? "Try again" : "Send to PayPal"} />
+                    )}
+                  </>
+                )}
               </section>
             </>
           ) : (

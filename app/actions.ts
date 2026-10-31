@@ -9,6 +9,7 @@ import { parseRule } from "@/lib/policy/parse-rule";
 import { upsertRule } from "@/lib/policy/rules-store";
 import type { ParsedRule } from "@/lib/policy/types";
 import { logActivity } from "@/lib/services/activity";
+import { executeDecision } from "@/lib/services/execute-decision";
 import { startInvestigation } from "@/lib/services/process-dispute";
 import { syncDisputes } from "@/lib/services/sync";
 
@@ -61,8 +62,16 @@ async function resolveDecision(decisionId: number, status: "approved" | "rejecte
   revalidatePath("/", "layout");
 }
 
-export async function approveDecisionAction(decisionId: number) {
-  await resolveDecision(decisionId, "approved");
+export async function approveDecisionAction(decisionId: number, responseText?: string): Promise<ActionResult> {
+  try {
+    await resolveDecision(decisionId, "approved");
+    const execution = await executeDecision(decisionId, responseText);
+    revalidatePath("/", "layout");
+    return execution.ok ? { ok: true, message: execution.detail } : { ok: false, message: execution.detail };
+  } catch (err) {
+    revalidatePath("/", "layout");
+    return { ok: false, message: describeError(err) };
+  }
 }
 
 export async function rejectDecisionAction(decisionId: number) {
@@ -95,4 +104,21 @@ export async function saveRuleAction(text: string, rule: ParsedRule): Promise<Ac
 export async function toggleRuleAction(ruleId: string, enabled: boolean) {
   await getDb().update(schema.rules).set({ enabled }).where(eq(schema.rules.id, ruleId));
   revalidatePath("/rules");
+}
+
+/** Sends an approved (or previously failed) decision to PayPal. */
+export async function sendDecisionAction(decisionId: number): Promise<ActionResult> {
+  try {
+    const db = getDb();
+    await db
+      .update(schema.decisions)
+      .set({ status: "approved" })
+      .where(eq(schema.decisions.id, decisionId));
+    const execution = await executeDecision(decisionId);
+    revalidatePath("/", "layout");
+    return { ok: execution.ok, message: execution.detail };
+  } catch (err) {
+    revalidatePath("/", "layout");
+    return { ok: false, message: describeError(err) };
+  }
 }

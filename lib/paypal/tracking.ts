@@ -13,3 +13,20 @@ export async function getTrackingForTransaction(transactionId: string): Promise<
     throw err;
   }
 }
+
+export type TrackerStatus = "SHIPPED" | "DELIVERED" | "ON_HOLD" | "CANCELLED";
+
+/** Attaches a tracking number to a PayPal transaction (used to prepare demo data). */
+export async function addTracking(transactionId: string, trackingNumber: string, status: TrackerStatus, carrier = "UPS") {
+  const result = await paypalFetch<{ tracker_identifiers?: unknown[]; errors?: Array<{ message?: string }> }>(
+    "/v1/shipping/trackers-batch",
+    {
+      method: "POST",
+      body: JSON.stringify({ trackers: [{ transaction_id: transactionId, tracking_number: trackingNumber, status, carrier }] }),
+    },
+  );
+  if (result.errors?.length) {
+    throw new Error(result.errors.map((e) => e.message ?? "Unknown tracking error").join("; "));
+  }
+  return result;
+}

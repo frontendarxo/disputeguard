@@ -91,7 +91,8 @@ export async function paypalFetch<T>(path: string, init: RequestInit = {}): Prom
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      // For multipart uploads, fetch sets the Content-Type (with boundary) itself.
+      ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...init.headers,
     },
   });
@@ -110,5 +111,6 @@ export async function paypalFetch<T>(path: string, init: RequestInit = {}): Prom
   }
 
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }

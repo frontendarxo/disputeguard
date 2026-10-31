@@ -20,7 +20,8 @@
     "db:seed": "tsx scripts/db-seed.ts",
     "db:check": "tsx scripts/db-check.ts",
     "sync": "tsx scripts/sync.ts",
-    "process": "tsx scripts/process.ts"
+    "process": "tsx scripts/process.ts",
+    "demo:track": "tsx scripts/demo-track.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",

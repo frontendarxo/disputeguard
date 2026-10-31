@@ -5,6 +5,7 @@ import { evaluatePolicy } from "../policy/engine";
 import { loadRules } from "../policy/rules-store";
 import { DEFAULT_GUARDRAILS, type DeliveryStatus } from "../policy/types";
 import { logActivity } from "./activity";
+import { executeDecision } from "./execute-decision";
 import { syncDispute } from "./sync";
 
 /**
@@ -71,7 +72,6 @@ export async function processDispute(
         reason: decision.reason,
         checks: decision.checks,
         matchedRuleId: decision.matchedRule?.id ?? null,
-        // Execution of approved actions against PayPal comes next (fight / refund).
         status: decision.mode === "auto" ? "approved" : "pending_approval",
       })
       .returning();
@@ -86,6 +86,13 @@ export async function processDispute(
           : `Recommends ${a.recommendation} — ${decision.reason}`,
       data: { decisionId: saved.id },
     });
+
+    // Allowed by the rules → carry it out in PayPal right away.
+    if (saved.mode === "auto") {
+      await executeDecision(saved.id);
+      const [updated] = await db.select().from(schema.decisions).where(eq(schema.decisions.id, saved.id));
+      return { dispute, assessment: a, decision: updated, investigationId: investigation.id };
+    }
 
     return { dispute, assessment: a, decision: saved, investigationId: investigation.id };
   } catch (err) {
